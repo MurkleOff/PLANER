@@ -94,6 +94,7 @@ export default function PlanningHorizons({
 
   const handleMonthShift = (deltaMonths) => {
     const d = new Date(monthDate);
+    d.setDate(1);
     d.setMonth(d.getMonth() + deltaMonths);
     setMonthDate(d);
   };

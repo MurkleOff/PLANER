@@ -27,28 +27,57 @@ export function formatDateKey(date) {
  */
 export function formatDateRu(dateStr) {
   if (!dateStr) return '';
-  const [y, m, d] = dateStr.split('-').map(Number);
-  if (!y || !m || !d) return dateStr;
-  return `${d} ${MONTHS_RU[m - 1]} ${y}`;
+  if (dateStr instanceof Date) {
+    const y = dateStr.getFullYear();
+    const m = dateStr.getMonth() + 1;
+    const d = dateStr.getDate();
+    return `${d} ${MONTHS_RU[m - 1]} ${y}`;
+  }
+  if (typeof dateStr === 'string') {
+    const parts = dateStr.split('-');
+    if (parts.length >= 3) {
+      const [y, m, d] = parts.map(Number);
+      if (y && m && d && m >= 1 && m <= 12) {
+        return `${d} ${MONTHS_RU[m - 1]} ${y}`;
+      }
+    }
+    return dateStr;
+  }
+  return String(dateStr);
 }
 
 /**
  * Get month key YYYY-MM
  */
 export function getMonthKey(date = new Date()) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = date instanceof Date ? date : new Date(date);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
   return `${y}-${m}`;
 }
 
 /**
- * Format YYYY-MM to readable Russian e.g. "Октябрь 2026"
+ * Format YYYY-MM or Date to readable Russian e.g. "Октябрь 2026"
  */
-export function formatMonthLabel(monthKey) {
-  if (!monthKey) return '';
-  const [y, m] = monthKey.split('-').map(Number);
-  if (!y || !m) return monthKey;
-  return `${MONTHS_NOMINATIVE[m - 1]} ${y}`;
+export function formatMonthLabel(monthInput) {
+  if (!monthInput) return '';
+  if (monthInput instanceof Date) {
+    const m = monthInput.getMonth();
+    const y = monthInput.getFullYear();
+    return `${MONTHS_NOMINATIVE[m]} ${y}`;
+  }
+  if (typeof monthInput === 'string') {
+    const parts = monthInput.split('-');
+    if (parts.length >= 2) {
+      const y = Number(parts[0]);
+      const m = Number(parts[1]);
+      if (y && m && m >= 1 && m <= 12) {
+        return `${MONTHS_NOMINATIVE[m - 1]} ${y}`;
+      }
+    }
+    return monthInput;
+  }
+  return String(monthInput);
 }
 
 /**
