@@ -226,7 +226,8 @@ export default function App() {
     plan: null, 
     defaultCategory: 'personality', 
     defaultHorizon: 'day', 
-    defaultPeriod: '' 
+    defaultPeriod: '',
+    defaultType: 'progress' 
   });
 
   // --- 8. Theme State ---
@@ -427,6 +428,50 @@ export default function App() {
       ...prev,
       plans: prev.plans.filter(p => p.id !== planId),
     }));
+  };
+
+  const handleQuickAddTask = (category, horizon, targetPeriod, text) => {
+    if (!text || !text.trim()) return;
+    const newPlan = {
+      id: `plan-${Date.now()}`,
+      title: text.trim(),
+      category,
+      horizon,
+      targetPeriod,
+      type: 'checkbox',
+      completed: false,
+      progress: 0,
+      deadline: null,
+    };
+    setState(prev => ({
+      ...prev,
+      plans: [...prev.plans, newPlan],
+    }));
+  };
+
+  const handlePromotePlanToTopTask = (taskTitle, dateKey) => {
+    if (!taskTitle) return;
+    sound.playCheckmarkClick();
+    setState(prev => {
+      const currentList = prev.tasksByDate[dateKey] || topTasksForActiveDate;
+      let slotIndex = currentList.findIndex(t => !t.text.trim());
+      if (slotIndex === -1) slotIndex = 0;
+
+      const updated = [...currentList];
+      updated[slotIndex] = {
+        ...updated[slotIndex],
+        text: taskTitle,
+        completed: false,
+      };
+
+      return {
+        ...prev,
+        tasksByDate: {
+          ...prev.tasksByDate,
+          [dateKey]: updated,
+        },
+      };
+    });
   };
 
   // Timer complete hook
@@ -650,13 +695,16 @@ export default function App() {
           onUpdatePlanTitle={handleUpdatePlanTitle}
           onDeletePlan={handleDeletePlan}
           onStartTimerForPlan={handleStartTimerForPlan}
-          onOpenAddPlanModal={(catId, horizon, period) => {
+          onQuickAddTask={handleQuickAddTask}
+          onPromotePlanToTopTask={handlePromotePlanToTopTask}
+          onOpenAddPlanModal={(catId, horizon, period, type = 'progress') => {
             setPlanModalData({
               isOpen: true,
               plan: null,
               defaultCategory: catId,
               defaultHorizon: horizon,
               defaultPeriod: period,
+              defaultType: type,
             });
           }}
           onOpenEditPlanModal={(plan) => {
@@ -666,6 +714,7 @@ export default function App() {
               defaultCategory: plan.category,
               defaultHorizon: plan.horizon,
               defaultPeriod: plan.targetPeriod,
+              defaultType: plan.type || 'progress',
             });
           }}
         />
@@ -743,6 +792,7 @@ export default function App() {
         defaultCategory={planModalData.defaultCategory}
         defaultHorizon={planModalData.defaultHorizon}
         defaultPeriod={planModalData.defaultPeriod}
+        defaultType={planModalData.defaultType || 'progress'}
         onSavePlan={handleSavePlan}
       />
     </div>

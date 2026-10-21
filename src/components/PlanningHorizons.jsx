@@ -5,14 +5,13 @@ import {
   ChevronRight, 
   Plus, 
   Check, 
-  Minus, 
   Trash2, 
-  Edit3, 
   Play, 
   Target, 
-  Sparkles,
-  Clock,
-  Compass
+  Clock, 
+  Compass,
+  CheckSquare,
+  ArrowUpRight
 } from 'lucide-react';
 import { CATEGORIES } from '../constants/initialData';
 import { 
@@ -39,6 +38,8 @@ export default function PlanningHorizons({
   onStartTimerForPlan,
   onOpenAddPlanModal,
   onOpenEditPlanModal,
+  onQuickAddTask,
+  onPromotePlanToTopTask,
 }) {
   const [activeHorizon, setActiveHorizon] = useState('day'); // 'day' | 'week' | 'month' | 'year'
 
@@ -51,6 +52,9 @@ export default function PlanningHorizons({
   // Editing state for inline text edit
   const [editingPlanId, setEditingPlanId] = useState(null);
   const [editTitleValue, setEditTitleValue] = useState('');
+
+  // Quick task input state for each sphere: { [catId]: string }
+  const [quickTaskTexts, setQuickTaskTexts] = useState({});
 
   // Computed period keys
   const mondayOfWeek = getMondayOfWeek(new Date(), weekOffset);
@@ -71,6 +75,15 @@ export default function PlanningHorizons({
   const currentPeriodPlans = plans.filter(p => {
     return p.horizon === activeHorizon && p.targetPeriod === activePeriodKey;
   });
+
+  const currentPeriodGoals = currentPeriodPlans.filter(p => p.type === 'progress');
+  const currentPeriodTasks = currentPeriodPlans.filter(p => p.type === 'checkbox' || !p.type);
+
+  const totalGoalsCount = currentPeriodGoals.length;
+  const completedGoalsCount = currentPeriodGoals.filter(g => g.progress === 100).length;
+
+  const totalTasksCount = currentPeriodTasks.length;
+  const completedTasksCount = currentPeriodTasks.filter(t => t.completed).length;
 
   // Period Navigation Handlers
   const handleDayShift = (deltaDays) => {
@@ -101,6 +114,18 @@ export default function PlanningHorizons({
     onTogglePlan(planId);
   };
 
+  const handleTaskInputChange = (catId, val) => {
+    setQuickTaskTexts(prev => ({ ...prev, [catId]: val }));
+  };
+
+  const handleQuickTaskSubmit = (e, catId) => {
+    e.preventDefault();
+    const text = (quickTaskTexts[catId] || '').trim();
+    if (!text || !onQuickAddTask) return;
+    onQuickAddTask(catId, activeHorizon, activePeriodKey, text);
+    setQuickTaskTexts(prev => ({ ...prev, [catId]: '' }));
+  };
+
   // Day label
   const getDayFormattedTitle = () => {
     const d = new Date(dayDate);
@@ -128,14 +153,23 @@ export default function PlanningHorizons({
             <Compass className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-sm sm:text-base font-bold text-white tracking-wide flex items-center gap-2">
+            <h2 className="text-sm sm:text-base font-bold text-white tracking-wide flex items-center gap-2 flex-wrap">
               <span>Горизонты планирования</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">
-                {currentPeriodPlans.length} планов
-              </span>
+              
+              {/* Separate counters for Goals and Tasks */}
+              <div className="flex items-center gap-1.5 text-[10px] font-mono">
+                <span className="px-2 py-0.5 rounded-full bg-cyan-950/70 text-cyan-300 border border-cyan-800/60 flex items-center gap-1">
+                  <Target className="w-2.5 h-2.5" />
+                  <span>{completedGoalsCount}/{totalGoalsCount} целей</span>
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-indigo-950/70 text-indigo-300 border border-indigo-800/60 flex items-center gap-1">
+                  <CheckSquare className="w-2.5 h-2.5" />
+                  <span>{completedTasksCount}/{totalTasksCount} задач</span>
+                </span>
+              </div>
             </h2>
             <p className="text-[11px] text-slate-400">
-              Гибкие планы на день, неделю, месяц и год по 4 сферам
+              Чёткое разделение стратегических целей и практических задач по 4 сферам
             </p>
           </div>
         </div>
@@ -208,7 +242,7 @@ export default function PlanningHorizons({
                 Завтра
               </button>
               
-              {/* Native Calendar Picker for ANY date */}
+              {/* Native Calendar Picker */}
               <label className="flex items-center gap-1 px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-cyan-500/30 rounded-lg text-xs cursor-pointer transition-colors" title="Выбрать любую календарную дату">
                 <Calendar className="w-3.5 h-3.5" />
                 <span className="text-[11px] font-mono">Выбрать дату</span>
@@ -248,14 +282,12 @@ export default function PlanningHorizons({
               </button>
             </div>
 
-            {weekOffset !== 0 && (
-              <button
-                onClick={() => setWeekOffset(0)}
-                className="px-2.5 py-1 text-[11px] rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/30 transition-colors"
-              >
-                К текущей неделе
-              </button>
-            )}
+            <button
+              onClick={() => setWeekOffset(0)}
+              className="px-2.5 py-1 text-[11px] rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
+            >
+              Текущая неделя
+            </button>
           </>
         )}
 
@@ -271,7 +303,7 @@ export default function PlanningHorizons({
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <div className="text-xs font-semibold text-white">
-                {formatMonthLabel(currentMonthKey)}
+                {formatMonthLabel(monthDate)}
               </div>
               <button
                 onClick={() => handleMonthShift(1)}
@@ -329,6 +361,11 @@ export default function PlanningHorizons({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {Object.values(CATEGORIES).map(cat => {
           const spherePlans = currentPeriodPlans.filter(p => p.category === cat.id);
+          const sphereGoals = spherePlans.filter(p => p.type === 'progress');
+          const sphereTasks = spherePlans.filter(p => p.type === 'checkbox' || !p.type);
+
+          const closedGoalsCount = sphereGoals.filter(g => g.progress === 100).length;
+          const closedTasksCount = sphereTasks.filter(t => t.completed).length;
 
           return (
             <div
@@ -337,7 +374,7 @@ export default function PlanningHorizons({
             >
               <div>
                 {/* Sphere Header */}
-                <div className="flex items-start justify-between pb-2.5 border-b border-slate-800/80 mb-3 gap-2">
+                <div className="flex items-start justify-between pb-3 border-b border-slate-800/80 mb-3 gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={`w-2.5 h-2.5 rounded-full ${cat.dotClass}`} />
@@ -345,7 +382,7 @@ export default function PlanningHorizons({
                         {cat.name}
                       </h3>
                       <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono border ${cat.badgeClass}`}>
-                        {spherePlans.length}
+                        {sphereGoals.length} целей • {sphereTasks.length} задач
                       </span>
                     </div>
                     {cat.motto && (
@@ -355,59 +392,260 @@ export default function PlanningHorizons({
                     )}
                   </div>
 
-                  <button
-                    onClick={() => onOpenAddPlanModal(cat.id, activeHorizon, activePeriodKey)}
-                    className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs flex items-center gap-1 transition-all shrink-0 active:scale-95"
-                    title={`Добавить цель или задачу в сферу «${cat.name}»`}
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span className="text-[11px]">Добавить</span>
-                  </button>
-                </div>
-
-                {/* Sphere Plans List */}
-                {spherePlans.length === 0 ? (
-                  /* Empty state for this sphere */
-                  <div className="py-6 px-3 text-center rounded-lg border border-dashed border-slate-800/70 bg-slate-900/30">
-                    <p className="text-xs text-slate-500 mb-2.5">
-                      В сфере «{cat.name}» пока нет планов на этот {activeHorizon === 'day' ? 'день' : activeHorizon === 'week' ? 'период недели' : activeHorizon === 'month' ? 'месяц' : 'год'}.
-                    </p>
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
-                      onClick={() => onOpenAddPlanModal(cat.id, activeHorizon, activePeriodKey)}
-                      className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-all active:scale-95 border border-slate-700/60"
+                      onClick={() => onOpenAddPlanModal(cat.id, activeHorizon, activePeriodKey, 'progress')}
+                      className="px-2.5 py-1 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all active:scale-95"
+                      title={`Добавить цель в сферу «${cat.name}»`}
                     >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>+ Поставить план</span>
+                      <Target className="w-3 h-3" />
+                      <span>+ Цель</span>
                     </button>
                   </div>
-                ) : (
-                  <div className="space-y-2.5">
-                    {spherePlans.map(plan => {
-                      const isEditing = editingPlanId === plan.id;
-                      const daysLeft = plan.deadline ? getDaysRemaining(plan.deadline) : null;
+                </div>
 
-                      // A) Checkbox Task
-                      if (plan.type === 'checkbox') {
+                {/* --- SECTION A: GOALS OF THE PERIOD --- */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-800/50">
+                    <div className="flex items-center gap-1.5">
+                      <Target className="w-3.5 h-3.5 text-cyan-400" />
+                      <span className="text-xs font-bold text-slate-200 tracking-wide">Цели периода</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded font-mono bg-cyan-950/60 text-cyan-300 border border-cyan-800/50">
+                        {closedGoalsCount} из {sphereGoals.length}
+                      </span>
+                    </div>
+                  </div>
+
+                  {sphereGoals.length === 0 ? (
+                    <div className="py-3 px-3 text-center rounded-xl border border-dashed border-slate-800/60 bg-slate-900/20 mb-2">
+                      <p className="text-[11px] text-slate-500 mb-1.5">
+                        Стратегических целей на этот период пока нет.
+                      </p>
+                      <button
+                        onClick={() => onOpenAddPlanModal(cat.id, activeHorizon, activePeriodKey, 'progress')}
+                        className="text-[11px] text-cyan-400 hover:text-cyan-300 font-semibold underline underline-offset-2"
+                      >
+                        + Поставить первую цель
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 mb-2">
+                      {sphereGoals.map(goal => {
+                        const isEditing = editingPlanId === goal.id;
+                        const isCompleted = goal.progress === 100;
+                        const daysLeft = goal.deadline ? getDaysRemaining(goal.deadline) : null;
+
                         return (
                           <div
-                            key={plan.id}
-                            className={`p-2.5 rounded-xl border transition-all flex items-center justify-between gap-2.5 ${
-                              plan.completed
-                                ? 'bg-slate-900/40 border-emerald-500/30 text-slate-500'
+                            key={goal.id}
+                            className={`p-3 rounded-xl border transition-all ${
+                              isCompleted
+                                ? 'bg-slate-900/60 border-emerald-500/40 shadow-sm shadow-emerald-500/5'
                                 : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
                             }`}
                           >
+                            <div className="flex items-start justify-between gap-2 mb-1.5">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                                  {isCompleted ? (
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-0.5">
+                                      <Check className="w-2.5 h-2.5 stroke-[3]" /> Достигнута
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                                      {goal.progress}%
+                                    </span>
+                                  )}
+
+                                  {goal.deadline && (
+                                    <span className="text-[9px] font-mono text-slate-400 flex items-center gap-1">
+                                      <Clock className="w-2.5 h-2.5 text-slate-500" />
+                                      {daysLeft > 0 ? (
+                                        <span>до {formatDateRu(goal.deadline)} ({daysLeft} дн.)</span>
+                                      ) : daysLeft === 0 ? (
+                                        <span className="text-amber-400">Дедлайн сегодня</span>
+                                      ) : (
+                                        <span className="text-rose-400">Просрочено</span>
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {isEditing ? (
+                                  <div className="flex items-center gap-1.5 mt-1">
+                                    <input
+                                      type="text"
+                                      value={editTitleValue}
+                                      onChange={(e) => setEditTitleValue(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleSaveInlineEdit(goal.id);
+                                        if (e.key === 'Escape') setEditingPlanId(null);
+                                      }}
+                                      autoFocus
+                                      className="w-full bg-slate-950 border border-indigo-500 rounded px-2 py-0.5 text-xs text-white"
+                                    />
+                                    <button
+                                      onClick={() => handleSaveInlineEdit(goal.id)}
+                                      className="text-[10px] px-1.5 py-0.5 bg-indigo-600 text-white rounded"
+                                    >
+                                      ОК
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <h4
+                                    onClick={() => {
+                                      setEditingPlanId(goal.id);
+                                      setEditTitleValue(goal.title);
+                                    }}
+                                    className={`text-xs font-semibold cursor-pointer truncate ${
+                                      isCompleted ? 'text-emerald-300' : 'text-slate-100 hover:text-cyan-300'
+                                    }`}
+                                    title="Кликните для редактирования названия цели"
+                                  >
+                                    {goal.title}
+                                  </h4>
+                                )}
+                              </div>
+
+                              {/* Action icons */}
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  onClick={() => onStartTimerForPlan(goal)}
+                                  className="p-1 text-slate-500 hover:text-cyan-400 transition-colors"
+                                  title="Запустить Deep Work таймер на эту цель"
+                                >
+                                  <Play className="w-3 h-3 fill-current" />
+                                </button>
+                                <button
+                                  onClick={() => onDeletePlan(goal.id)}
+                                  className="p-1 text-slate-600 hover:text-rose-400 transition-colors"
+                                  title="Удалить цель"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Progress Bar */}
+                            <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden p-0.2 border border-slate-800 mb-2">
+                              <div
+                                className={`h-full rounded-full transition-all duration-300 ${
+                                  isCompleted ? 'bg-emerald-400' : cat.barClass
+                                }`}
+                                style={{ width: `${goal.progress}%` }}
+                              />
+                            </div>
+
+                            {/* Quick Adjustment Buttons */}
+                            <div className="flex items-center justify-between text-[10px] font-mono">
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => onUpdatePlanProgress(goal.id, Math.max(0, goal.progress - 10))}
+                                  className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                                  title="-10%"
+                                >
+                                  -10%
+                                </button>
+                                <button
+                                  onClick={() => onUpdatePlanProgress(goal.id, Math.min(100, goal.progress + 10))}
+                                  className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                                  title="+10%"
+                                >
+                                  +10%
+                                </button>
+                                <button
+                                  onClick={() => onUpdatePlanProgress(goal.id, Math.min(100, goal.progress + 25))}
+                                  className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                                  title="+25%"
+                                >
+                                  +25%
+                                </button>
+                              </div>
+
+                              <button
+                                onClick={() => onUpdatePlanProgress(goal.id, isCompleted ? 0 : 100)}
+                                className={`px-2 py-0.5 rounded font-semibold transition-all ${
+                                  isCompleted
+                                    ? 'bg-slate-800 text-slate-400 hover:text-white'
+                                    : 'bg-emerald-600/30 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/30'
+                                }`}
+                                title={isCompleted ? 'Сбросить готовность' : 'Отметить как выполненную (100%)'}
+                              >
+                                {isCompleted ? 'Сброс' : '100% ✓'}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* --- SECTION B: TASKS OF THE PERIOD --- */}
+                <div>
+                  <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-800/50">
+                    <div className="flex items-center gap-1.5">
+                      <CheckSquare className="w-3.5 h-3.5 text-indigo-400" />
+                      <span className="text-xs font-bold text-slate-200 tracking-wide">Задачи периода</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded font-mono bg-indigo-950/60 text-indigo-300 border border-indigo-800/50">
+                        {closedTasksCount} из {sphereTasks.length}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Quick Inline Input */}
+                  <form onSubmit={(e) => handleQuickTaskSubmit(e, cat.id)} className="flex items-center gap-1.5 mb-2.5">
+                    <input
+                      type="text"
+                      placeholder={`Добавить задачу в ${cat.name}...`}
+                      value={quickTaskTexts[cat.id] || ''}
+                      onChange={(e) => handleTaskInputChange(cat.id, e.target.value)}
+                      className="flex-1 bg-slate-900 border border-slate-800 focus:border-indigo-500/70 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder:text-slate-600 focus:outline-none transition-colors"
+                    />
+                    <button
+                      type="submit"
+                      className="p-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shrink-0 active:scale-95 shadow-sm"
+                      title="Добавить задачу (Enter)"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </form>
+
+                  {/* Tasks List */}
+                  {sphereTasks.length === 0 ? (
+                    <div className="py-2.5 px-3 text-center rounded-xl border border-dashed border-slate-800/60 bg-slate-900/20">
+                      <p className="text-[11px] text-slate-500">
+                        Задач пока нет. Введите задачу выше и нажмите Enter.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 max-h-56 overflow-y-auto pr-0.5">
+                      {sphereTasks.map(task => {
+                        const isEditing = editingPlanId === task.id;
+
+                        return (
+                          <div
+                            key={task.id}
+                            className={`p-2 rounded-xl border transition-all flex items-center justify-between gap-2 ${
+                              task.completed
+                                ? 'bg-slate-900/30 border-slate-800/40 text-slate-500'
+                                : 'bg-slate-900/70 border-slate-800/80 hover:border-slate-700'
+                            }`}
+                          >
+                            {/* Checkbox */}
                             <button
-                              onClick={() => handleToggle(plan.id)}
-                              className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 transition-all ${
-                                plan.completed
+                              onClick={() => handleToggle(task.id)}
+                              className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${
+                                task.completed
                                   ? 'bg-emerald-500 border-emerald-500 text-slate-950'
                                   : 'border-slate-700 bg-slate-950 hover:border-indigo-400'
                               }`}
+                              title={task.completed ? 'Снять отметку' : 'Отметить выполненной'}
                             >
-                              {plan.completed && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                              {task.completed && <Check className="w-3 h-3 stroke-[3]" />}
                             </button>
 
+                            {/* Title or Inline edit */}
                             <div className="flex-1 min-w-0">
                               {isEditing ? (
                                 <div className="flex items-center gap-1.5">
@@ -416,164 +654,70 @@ export default function PlanningHorizons({
                                     value={editTitleValue}
                                     onChange={(e) => setEditTitleValue(e.target.value)}
                                     onKeyDown={(e) => {
-                                      if (e.key === 'Enter') handleSaveInlineEdit(plan.id);
+                                      if (e.key === 'Enter') handleSaveInlineEdit(task.id);
                                       if (e.key === 'Escape') setEditingPlanId(null);
                                     }}
                                     autoFocus
-                                    className="w-full bg-slate-950 border border-indigo-500 rounded px-2 py-0.5 text-xs text-white"
+                                    className="w-full bg-slate-950 border border-indigo-500 rounded px-1.5 py-0.5 text-xs text-white"
                                   />
                                   <button
-                                    onClick={() => handleSaveInlineEdit(plan.id)}
+                                    onClick={() => handleSaveInlineEdit(task.id)}
                                     className="text-[10px] px-1.5 py-0.5 bg-indigo-600 text-white rounded"
                                   >
                                     ОК
                                   </button>
                                 </div>
                               ) : (
-                                <div
+                                <span
                                   onClick={() => {
-                                    setEditingPlanId(plan.id);
-                                    setEditTitleValue(plan.title);
+                                    setEditingPlanId(task.id);
+                                    setEditTitleValue(task.title);
                                   }}
-                                  className={`text-xs cursor-pointer truncate ${
-                                    plan.completed ? 'line-through text-slate-500' : 'text-slate-200'
+                                  className={`text-xs cursor-pointer truncate block ${
+                                    task.completed ? 'line-through text-slate-500' : 'text-slate-200'
                                   }`}
-                                  title="Кликните для редактирования"
+                                  title="Кликните для редактирования текста задачи"
                                 >
-                                  {plan.title}
-                                </div>
-                              )}
-
-                              {plan.deadline && (
-                                <div className="text-[10px] text-slate-500 font-mono flex items-center gap-1 mt-0.5">
-                                  <Calendar className="w-3 h-3 text-slate-500" />
-                                  <span>до {formatDateRu(plan.deadline)}</span>
-                                </div>
+                                  {task.title}
+                                </span>
                               )}
                             </div>
 
                             {/* Actions */}
-                            <div className="flex items-center gap-1 shrink-0">
+                            <div className="flex items-center gap-0.5 shrink-0">
+                              {activeHorizon === 'day' && onPromotePlanToTopTask && (
+                                <button
+                                  onClick={() => onPromotePlanToTopTask(task.title, activePeriodKey)}
+                                  className="p-1 text-slate-500 hover:text-indigo-400 transition-colors"
+                                  title="Сделать одной из 3 главных задач дня"
+                                >
+                                  <ArrowUpRight className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+
                               <button
-                                onClick={() => onStartTimerForPlan(plan)}
+                                onClick={() => onStartTimerForPlan(task)}
                                 className="p-1 text-slate-500 hover:text-cyan-400 transition-colors"
-                                title="Запустить таймер фокуса"
+                                title="Запустить Deep Work таймер на эту задачу"
                               >
                                 <Play className="w-3 h-3 fill-current" />
                               </button>
+
                               <button
-                                onClick={() => onDeletePlan(plan.id)}
+                                onClick={() => onDeletePlan(task.id)}
                                 className="p-1 text-slate-600 hover:text-rose-400 transition-colors"
-                                title="Удалить"
+                                title="Удалить задачу"
                               >
                                 <Trash2 className="w-3 h-3" />
                               </button>
                             </div>
                           </div>
                         );
-                      }
+                      })}
+                    </div>
+                  )}
+                </div>
 
-                      // B) Progress Goal (0-100%)
-                      return (
-                        <div
-                          key={plan.id}
-                          className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 transition-all"
-                        >
-                          <div className="flex items-start justify-between gap-2 mb-1.5">
-                            <div className="flex-1 min-w-0">
-                              {isEditing ? (
-                                <div className="flex items-center gap-1.5">
-                                  <input
-                                    type="text"
-                                    value={editTitleValue}
-                                    onChange={(e) => setEditTitleValue(e.target.value)}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') handleSaveInlineEdit(plan.id);
-                                      if (e.key === 'Escape') setEditingPlanId(null);
-                                    }}
-                                    autoFocus
-                                    className="w-full bg-slate-950 border border-indigo-500 rounded px-2 py-0.5 text-xs text-white"
-                                  />
-                                  <button
-                                    onClick={() => handleSaveInlineEdit(plan.id)}
-                                    className="text-[10px] px-1.5 py-0.5 bg-indigo-600 text-white rounded"
-                                  >
-                                    ОК
-                                  </button>
-                                </div>
-                              ) : (
-                                <h4
-                                  onClick={() => {
-                                    setEditingPlanId(plan.id);
-                                    setEditTitleValue(plan.title);
-                                  }}
-                                  className="text-xs font-semibold text-slate-200 truncate cursor-pointer hover:text-indigo-300"
-                                  title="Кликните для редактирования"
-                                >
-                                  {plan.title}
-                                </h4>
-                              )}
-
-                              {plan.deadline && (
-                                <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1 mt-0.5">
-                                  <Clock className="w-3 h-3 text-slate-500" />
-                                  {daysLeft > 0 ? (
-                                    <span>Осталось {daysLeft} дн.</span>
-                                  ) : daysLeft === 0 ? (
-                                    <span className="text-amber-400">Дедлайн сегодня</span>
-                                  ) : (
-                                    <span className="text-rose-400">Просрочено</span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-1 shrink-0">
-                              <button
-                                onClick={() => onDeletePlan(plan.id)}
-                                className="p-1 text-slate-600 hover:text-rose-400 transition-colors"
-                                title="Удалить цель"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Progress slider / buttons */}
-                          <div className="flex items-center justify-between text-xs text-slate-400 mb-1 font-mono">
-                            <span>Готовность:</span>
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                onClick={() => onUpdatePlanProgress(plan.id, Math.max(0, plan.progress - 5))}
-                                className="w-4 h-4 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-xs"
-                                title="-5%"
-                              >
-                                <Minus className="w-2.5 h-2.5" />
-                              </button>
-                              <span className="font-bold text-slate-200 min-w-[32px] text-center text-xs">
-                                {plan.progress}%
-                              </span>
-                              <button
-                                onClick={() => onUpdatePlanProgress(plan.id, Math.min(100, plan.progress + 5))}
-                                className="w-4 h-4 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-xs"
-                                title="+5%"
-                              >
-                                <Plus className="w-2.5 h-2.5" />
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden p-0.2 border border-slate-800">
-                            <div
-                              className={`h-full rounded-full transition-all duration-300 ${cat.barClass}`}
-                              style={{ width: `${plan.progress}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
             </div>
           );
