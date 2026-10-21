@@ -2,12 +2,13 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import confetti from 'canvas-confetti';
 
 import Header from './components/Header';
-import MetricsBar from './components/MetricsBar';
+import CompactMetricsBar from './components/CompactMetricsBar';
 import FocusTimer from './components/FocusTimer';
 import TodayFocusRoutine from './components/TodayFocusRoutine';
 import PlanningHorizons from './components/PlanningHorizons';
 import WeekChart from './components/WeekChart';
 import WeeklyMatrix from './components/WeeklyMatrix';
+import { Target, Compass, BarChart3, Zap } from 'lucide-react';
 
 import CloudSyncModal from './components/modals/CloudSyncModal';
 import BackupModal from './components/modals/BackupModal';
@@ -229,6 +230,9 @@ export default function App() {
     defaultPeriod: '',
     defaultType: 'progress' 
   });
+
+  // --- Active Tab State: 'today' | 'horizons' | 'matrix' ---
+  const [activeTab, setActiveTab] = useState('today');
 
   // --- 8. Theme State ---
   const [isDark, setIsDark] = useState(state.theme !== 'light');
@@ -633,106 +637,204 @@ export default function App() {
       />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 pb-24 md:pb-8">
         
-        {/* 2. Top Metrics Bar */}
-        <MetricsBar
+        {/* 2. Top Compact Metrics Bar */}
+        <CompactMetricsBar
           dailyChargeMetrics={dailyChargeMetrics}
           disciplineMetrics={disciplineMetrics}
           totalStreakCount={totalStreakCount}
           todayFocusMinutes={todayFocusMinutes}
         />
 
-        {/* 3. Middle 2-Column Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mb-6">
-          
-          {/* Left Column: Today's Focus & Routine (7 cols) */}
-          <div className="lg:col-span-7">
-            <TodayFocusRoutine
-              weekDays={weekDays}
-              selectedDayIndex={selectedDayIndex}
-              setSelectedDayIndex={setSelectedDayIndex}
-              habits={state.habits}
-              habitLogs={state.habitLogs}
-              onToggleHabit={handleToggleHabit}
-              topTasks={topTasksForActiveDate}
-              onToggleTopTask={handleToggleTopTask}
-              onUpdateTopTaskText={handleUpdateTopTaskText}
-              inboxTasks={state.inboxTasks}
-              onAddInboxTask={handleAddInboxTask}
-              onDeleteInboxTask={handleDeleteInboxTask}
-              onPromoteInboxToTopTask={handlePromoteInboxToTopTask}
-              onStartTimerForHabit={handleStartTimerForHabit}
-              onStartTimerForTask={handleStartTimerForTask}
-              onOpenAddHabitModal={(catId) => setHabitModalData({ isOpen: true, habit: null, defaultCategory: catId || 'personality' })}
-            />
+        {/* 3. Desktop Navigation Tabs */}
+        <div className="hidden md:flex items-center justify-between mb-5 pb-2 border-b border-slate-800/80">
+          <div className="inline-flex p-1 bg-slate-900/90 rounded-2xl border border-slate-800 shadow-inner gap-1">
+            <button
+              onClick={() => setActiveTab('today')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                activeTab === 'today'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 fill-current" />
+              <span>🎯 Сегодня: Фокус</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('horizons')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                activeTab === 'horizons'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              }`}
+            >
+              <Compass className="w-3.5 h-3.5" />
+              <span>🗺️ Горизонты планов</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('matrix')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                activeTab === 'matrix'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>📊 Матрица & Аналитика</span>
+            </button>
           </div>
 
-          {/* Right Column: Deep Work Timer & Week Dynamics Chart (5 cols) */}
-          <div className="lg:col-span-5 space-y-5">
-            <FocusTimer
-              habits={state.habits}
-              topTasks={topTasksForActiveDate}
-              activeDateKey={activeDateKey}
-              onCompleteHabitOrTask={handleCompleteHabitOrTask}
-              onAddFocusMinutes={handleAddFocusMinutes}
-            />
+          <div className="text-xs text-slate-400 font-mono">
+            {activeTab === 'today' && <span>Ежедневные задачи, привычки и Deep Work</span>}
+            {activeTab === 'horizons' && <span>Цели и задачи по 4 сферам жизни</span>}
+            {activeTab === 'matrix' && <span>Сводная матрица привычек и динамика недели</span>}
+          </div>
+        </div>
 
+        {/* --- SCREEN 1: TODAY / FOCUS --- */}
+        {activeTab === 'today' && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-in fade-in duration-200">
+            {/* Left Column: Today's Focus & Routine (7 cols) */}
+            <div className="lg:col-span-7">
+              <TodayFocusRoutine
+                weekDays={weekDays}
+                selectedDayIndex={selectedDayIndex}
+                setSelectedDayIndex={setSelectedDayIndex}
+                habits={state.habits}
+                habitLogs={state.habitLogs}
+                onToggleHabit={handleToggleHabit}
+                topTasks={topTasksForActiveDate}
+                onToggleTopTask={handleToggleTopTask}
+                onUpdateTopTaskText={handleUpdateTopTaskText}
+                inboxTasks={state.inboxTasks}
+                onAddInboxTask={handleAddInboxTask}
+                onDeleteInboxTask={handleDeleteInboxTask}
+                onPromoteInboxToTopTask={handlePromoteInboxToTopTask}
+                onStartTimerForHabit={handleStartTimerForHabit}
+                onStartTimerForTask={handleStartTimerForTask}
+                onOpenAddHabitModal={(catId) => setHabitModalData({ isOpen: true, habit: null, defaultCategory: catId || 'personality' })}
+              />
+            </div>
+
+            {/* Right Column: Deep Work Timer (5 cols) */}
+            <div className="lg:col-span-5 space-y-5">
+              <FocusTimer
+                habits={state.habits}
+                topTasks={topTasksForActiveDate}
+                activeDateKey={activeDateKey}
+                onCompleteHabitOrTask={handleCompleteHabitOrTask}
+                onAddFocusMinutes={handleAddFocusMinutes}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* --- SCREEN 2: HORIZONS (PLANS & GOALS) --- */}
+        {activeTab === 'horizons' && (
+          <div className="animate-in fade-in duration-200">
+            <PlanningHorizons
+              plans={state.plans}
+              onTogglePlan={handleTogglePlan}
+              onUpdatePlanProgress={handleUpdatePlanProgress}
+              onUpdatePlanTitle={handleUpdatePlanTitle}
+              onDeletePlan={handleDeletePlan}
+              onStartTimerForPlan={handleStartTimerForPlan}
+              onQuickAddTask={handleQuickAddTask}
+              onPromotePlanToTopTask={handlePromotePlanToTopTask}
+              onOpenAddPlanModal={(catId, horizon, period, type = 'progress') => {
+                setPlanModalData({
+                  isOpen: true,
+                  plan: null,
+                  defaultCategory: catId,
+                  defaultHorizon: horizon,
+                  defaultPeriod: period,
+                  defaultType: type,
+                });
+              }}
+              onOpenEditPlanModal={(plan) => {
+                setPlanModalData({
+                  isOpen: true,
+                  plan,
+                  defaultCategory: plan.category,
+                  defaultHorizon: plan.horizon,
+                  defaultPeriod: plan.targetPeriod,
+                  defaultType: plan.type || 'progress',
+                });
+              }}
+            />
+          </div>
+        )}
+
+        {/* --- SCREEN 3: MATRIX & ANALYTICS --- */}
+        {activeTab === 'matrix' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            {/* Week Dynamics Chart & SVG */}
             <WeekChart
               weekDynamics={weekDynamics}
               selectedDayIndex={selectedDayIndex}
               setSelectedDayIndex={setSelectedDayIndex}
             />
+
+            {/* Full-Width Weekly Matrix */}
+            <WeeklyMatrix
+              weekDays={weekDays}
+              habits={state.habits}
+              habitLogs={state.habitLogs}
+              onToggleHabit={handleToggleHabit}
+              onOpenAddHabitModal={(catId) => setHabitModalData({ isOpen: true, habit: null, defaultCategory: catId || 'personality' })}
+              onOpenEditHabitModal={(habit) => setHabitModalData({ isOpen: true, habit, defaultCategory: habit.category })}
+              onDeleteHabit={handleDeleteHabit}
+              onStartNewWeek={handleStartNewWeek}
+              selectedDayIndex={selectedDayIndex}
+            />
           </div>
-
-        </div>
-
-        {/* 4. Multi-Horizon Planning Section (Day / Week / Month / Year by 4 Spheres) */}
-        <PlanningHorizons
-          plans={state.plans}
-          onTogglePlan={handleTogglePlan}
-          onUpdatePlanProgress={handleUpdatePlanProgress}
-          onUpdatePlanTitle={handleUpdatePlanTitle}
-          onDeletePlan={handleDeletePlan}
-          onStartTimerForPlan={handleStartTimerForPlan}
-          onQuickAddTask={handleQuickAddTask}
-          onPromotePlanToTopTask={handlePromotePlanToTopTask}
-          onOpenAddPlanModal={(catId, horizon, period, type = 'progress') => {
-            setPlanModalData({
-              isOpen: true,
-              plan: null,
-              defaultCategory: catId,
-              defaultHorizon: horizon,
-              defaultPeriod: period,
-              defaultType: type,
-            });
-          }}
-          onOpenEditPlanModal={(plan) => {
-            setPlanModalData({
-              isOpen: true,
-              plan,
-              defaultCategory: plan.category,
-              defaultHorizon: plan.horizon,
-              defaultPeriod: plan.targetPeriod,
-              defaultType: plan.type || 'progress',
-            });
-          }}
-        />
-
-        {/* 5. Bottom Full-Width Weekly Matrix */}
-        <WeeklyMatrix
-          weekDays={weekDays}
-          habits={state.habits}
-          habitLogs={state.habitLogs}
-          onToggleHabit={handleToggleHabit}
-          onOpenAddHabitModal={(catId) => setHabitModalData({ isOpen: true, habit: null, defaultCategory: catId || 'personality' })}
-          onOpenEditHabitModal={(habit) => setHabitModalData({ isOpen: true, habit, defaultCategory: habit.category })}
-          onDeleteHabit={handleDeleteHabit}
-          onStartNewWeek={handleStartNewWeek}
-          selectedDayIndex={selectedDayIndex}
-        />
+        )}
 
       </main>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800/90 px-3 py-2 shadow-2xl">
+        <div className="grid grid-cols-3 gap-1 max-w-md mx-auto">
+          <button
+            onClick={() => setActiveTab('today')}
+            className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all ${
+              activeTab === 'today'
+                ? 'bg-indigo-600/20 text-indigo-300 font-bold border border-indigo-500/30 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Zap className="w-4 h-4 mb-0.5 fill-current" />
+            <span className="text-[10px] leading-tight font-medium">Сегодня</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('horizons')}
+            className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all ${
+              activeTab === 'horizons'
+                ? 'bg-indigo-600/20 text-indigo-300 font-bold border border-indigo-500/30 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Compass className="w-4 h-4 mb-0.5" />
+            <span className="text-[10px] leading-tight font-medium">Планы</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('matrix')}
+            className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all ${
+              activeTab === 'matrix'
+                ? 'bg-indigo-600/20 text-indigo-300 font-bold border border-indigo-500/30 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4 mb-0.5" />
+            <span className="text-[10px] leading-tight font-medium">Матрица</span>
+          </button>
+        </div>
+      </nav>
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 py-4 text-center text-xs text-slate-500">
