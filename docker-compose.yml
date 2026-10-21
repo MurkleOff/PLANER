@@ -1,0 +1,7 @@
+services:
+  panel:
+    build: .
+    container_name: discipline-panel
+    restart: always
+    ports:
+      - "80:80"
