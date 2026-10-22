@@ -9,8 +9,9 @@ import {
   Play, 
   Target, 
   Clock, 
-  Compass,
-  CheckSquare
+  Compass, 
+  CheckSquare,
+  ArrowRight
 } from 'lucide-react';
 import { CATEGORIES } from '../constants/initialData';
 import { 
@@ -24,6 +25,7 @@ import {
   getWeekKey,
   getMonthKey,
   getYearKey,
+  addDays,
   DAYS_FULL
 } from '../utils/dateUtils';
 import { sound } from '../utils/audio';
@@ -33,6 +35,7 @@ export default function PlanningHorizons({
   onTogglePlan,
   onUpdatePlanProgress,
   onUpdatePlanTitle,
+  onReschedulePlan,
   onDeletePlan,
   onStartTimerForPlan,
   onOpenAddPlanModal,
@@ -83,6 +86,14 @@ export default function PlanningHorizons({
 
   const totalTasksCount = currentPeriodTasks.length;
   const completedTasksCount = currentPeriodTasks.filter(t => t.completed).length;
+
+  const realTodayKey = formatDateKey(new Date());
+  const getSmartNextDay = (dateStr) => {
+    if (dateStr < realTodayKey) {
+      return realTodayKey;
+    }
+    return addDays(dateStr, 1);
+  };
 
   // Period Navigation Handlers
   const handleDayShift = (deltaDays) => {
@@ -481,6 +492,33 @@ export default function PlanningHorizons({
                               </span>
                             </div>
                             <div className="flex items-center gap-1">
+                              {onReschedulePlan && (
+                                <div className="flex items-center bg-slate-900 rounded border border-slate-800 p-0.5">
+                                  <button
+                                    onClick={() => onReschedulePlan(task.id, getSmartNextDay(dayDate))}
+                                    className="p-1 text-slate-500 hover:text-amber-400 transition-colors"
+                                    title={`Перенести на ${dayDate < realTodayKey ? 'сегодня' : 'завтра'} (${formatDateRu(getSmartNextDay(dayDate))})`}
+                                  >
+                                    <ArrowRight className="w-3 h-3" />
+                                  </button>
+                                  <label
+                                    className="p-1 text-slate-600 hover:text-cyan-400 cursor-pointer relative"
+                                    title="Выбрать другую дату"
+                                  >
+                                    <Calendar className="w-2.5 h-2.5" />
+                                    <input
+                                      type="date"
+                                      defaultValue={getSmartNextDay(dayDate)}
+                                      onChange={(e) => {
+                                        if (e.target.value && onReschedulePlan) {
+                                          onReschedulePlan(task.id, e.target.value);
+                                        }
+                                      }}
+                                      className="sr-only"
+                                    />
+                                  </label>
+                                </div>
+                              )}
                               <button
                                 onClick={() => onStartTimerForPlan(task)}
                                 className="p-1 text-slate-500 hover:text-cyan-400"
@@ -834,6 +872,34 @@ export default function PlanningHorizons({
 
                             {/* Actions */}
                             <div className="flex items-center gap-0.5 shrink-0">
+                              {activeHorizon === 'day' && onReschedulePlan && (
+                                <div className="flex items-center bg-slate-900 rounded border border-slate-800 p-0.5">
+                                  <button
+                                    onClick={() => onReschedulePlan(task.id, getSmartNextDay(dayDate))}
+                                    className="p-1 text-slate-500 hover:text-amber-400 transition-colors"
+                                    title={`Перенести на ${dayDate < realTodayKey ? 'сегодня' : 'завтра'} (${formatDateRu(getSmartNextDay(dayDate))})`}
+                                  >
+                                    <ArrowRight className="w-3 h-3" />
+                                  </button>
+                                  <label
+                                    className="p-1 text-slate-600 hover:text-cyan-400 cursor-pointer relative"
+                                    title="Выбрать другую дату"
+                                  >
+                                    <Calendar className="w-2.5 h-2.5" />
+                                    <input
+                                      type="date"
+                                      defaultValue={getSmartNextDay(dayDate)}
+                                      onChange={(e) => {
+                                        if (e.target.value && onReschedulePlan) {
+                                          onReschedulePlan(task.id, e.target.value);
+                                        }
+                                      }}
+                                      className="sr-only"
+                                    />
+                                  </label>
+                                </div>
+                              )}
+
                               <button
                                 onClick={() => onStartTimerForPlan(task)}
                                 className="p-1 text-slate-500 hover:text-cyan-400 transition-colors"

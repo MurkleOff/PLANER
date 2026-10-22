@@ -180,3 +180,32 @@ export function getDaysRemaining(targetDateStr) {
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return diffDays;
 }
+
+/**
+ * Add or subtract days from a date string (YYYY-MM-DD) or Date object, returning YYYY-MM-DD
+ */
+export function addDays(dateStrOrDate, n = 1) {
+  let d;
+  if (typeof dateStrOrDate === 'string') {
+    const parts = dateStrOrDate.split('-').map(Number);
+    d = new Date(parts[0], parts[1] - 1, parts[2]);
+  } else {
+    d = new Date(dateStrOrDate);
+  }
+  d.setDate(d.getDate() + n);
+  return formatDateKey(d);
+}
+
+/**
+ * Get yesterday's date key YYYY-MM-DD
+ */
+export function getYesterdayKey(date = new Date()) {
+  return addDays(date, -1);
+}
+
+/**
+ * Get tomorrow's date key YYYY-MM-DD
+ */
+export function getTomorrowKey(date = new Date()) {
+  return addDays(date, 1);
+}

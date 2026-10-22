@@ -25,7 +25,8 @@ import {
 import { 
   getMondayOfWeek, 
   getWeekDays, 
-  formatDateKey 
+  formatDateKey,
+  getYesterdayKey 
 } from './utils/dateUtils';
 
 import { 
@@ -153,12 +154,22 @@ export default function App() {
   const activeDay = weekDays[selectedDayIndex] || weekDays[0];
   const activeDateKey = activeDay.dateKey;
 
+  const realTodayKey = useMemo(() => formatDateKey(new Date()), []);
+  const yesterdayKey = useMemo(() => getYesterdayKey(new Date()), []);
+
   // --- 4. Actual Real Tasks for Active Date (From state.plans) ---
   const todayTasksForActiveDate = useMemo(() => {
     return state.plans.filter(
       p => p.horizon === 'day' && p.targetPeriod === activeDateKey && (p.type === 'checkbox' || !p.type)
     );
   }, [state.plans, activeDateKey]);
+
+  // Tasks from yesterday that remained uncompleted
+  const yesterdayOverdueTasks = useMemo(() => {
+    return state.plans.filter(
+      p => p.horizon === 'day' && p.targetPeriod === yesterdayKey && !p.completed && (p.type === 'checkbox' || !p.type)
+    );
+  }, [state.plans, yesterdayKey]);
 
   // --- 5. Metrics Calculations ---
   const dailyChargeMetrics = useMemo(() => {
@@ -447,6 +458,42 @@ export default function App() {
     }));
   };
 
+  const handleReschedulePlan = (planId, targetDateKey) => {
+    sound.playCheckmarkClick();
+    setState(prev => ({
+      ...prev,
+      plans: prev.plans.map(p => {
+        if (p.id === planId) {
+          return {
+            ...p,
+            targetPeriod: targetDateKey,
+            completed: false,
+            progress: 0,
+          };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  const handleRescheduleOverduePlans = (fromDateKey, toDateKey) => {
+    sound.playCheckmarkClick();
+    setState(prev => ({
+      ...prev,
+      plans: prev.plans.map(p => {
+        if (p.horizon === 'day' && p.targetPeriod === fromDateKey && !p.completed) {
+          return {
+            ...p,
+            targetPeriod: toDateKey,
+            completed: false,
+            progress: 0,
+          };
+        }
+        return p;
+      }),
+    }));
+  };
+
   const handlePromoteInboxToTodayTask = (inboxId, category = 'work') => {
     const item = state.inboxTasks.find(x => x.id === inboxId);
     if (!item) return;
@@ -688,6 +735,9 @@ export default function App() {
                 onToggleTodayTask={handleTogglePlan}
                 onUpdateTodayTaskText={handleUpdatePlanTitle}
                 onUpdateTodayTaskCategory={handleUpdatePlanCategory}
+                onRescheduleTask={handleReschedulePlan}
+                yesterdayOverdueCount={yesterdayOverdueTasks.length}
+                onRescheduleYesterdayOverdue={() => handleRescheduleOverduePlans(yesterdayKey, activeDateKey)}
                 onDeleteTodayTask={handleDeletePlan}
                 onAddTodayTask={handleAddTodayTask}
                 inboxTasks={state.inboxTasks}
@@ -721,6 +771,7 @@ export default function App() {
               onTogglePlan={handleTogglePlan}
               onUpdatePlanProgress={handleUpdatePlanProgress}
               onUpdatePlanTitle={handleUpdatePlanTitle}
+              onReschedulePlan={handleReschedulePlan}
               onDeletePlan={handleDeletePlan}
               onStartTimerForPlan={handleStartTimerForPlan}
               onQuickAddTask={handleQuickAddTask}

@@ -9,11 +9,15 @@ import {
   Trash2, 
   ArrowUpRight, 
   Edit3,
-  CheckSquare
+  CheckSquare,
+  ArrowRight,
+  Calendar,
+  Clock
 } from 'lucide-react';
 import { CATEGORIES } from '../constants/initialData';
 import { isHabitDoneOnDate, getHabitWeekCompletedCount, calculateSmartStreak } from '../utils/metrics';
 import { sound } from '../utils/audio';
+import { formatDateKey, addDays, formatDateRu } from '../utils/dateUtils';
 
 export default function TodayFocusRoutine({
   weekDays,
@@ -26,6 +30,9 @@ export default function TodayFocusRoutine({
   onToggleTodayTask,
   onUpdateTodayTaskText,
   onUpdateTodayTaskCategory,
+  onRescheduleTask,
+  yesterdayOverdueCount = 0,
+  onRescheduleYesterdayOverdue,
   onDeleteTodayTask,
   onAddTodayTask,
   inboxTasks = [],
@@ -63,6 +70,22 @@ export default function TodayFocusRoutine({
     : todayTasks.filter(t => t.category === activeCategoryFilter);
 
   const completedFilteredCount = visibleTasks.filter(t => t.completed).length;
+
+  const realTodayKey = formatDateKey(new Date());
+
+  const getSmartNextDateKey = () => {
+    if (activeDateKey < realTodayKey) {
+      return realTodayKey;
+    }
+    return addDays(activeDateKey, 1);
+  };
+
+  const smartNextDateKey = getSmartNextDateKey();
+  const smartLabel = activeDateKey < realTodayKey
+    ? 'Перенести на сегодня'
+    : activeDateKey === realTodayKey
+      ? 'Перенести на завтра'
+      : `Перенести на +1 день (${formatDateRu(smartNextDateKey)})`;
 
   const handleCheckboxClick = (habit) => {
     sound.playCheckmarkClick();
@@ -184,6 +207,34 @@ export default function TodayFocusRoutine({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-1 shrink-0">
+          {/* Smart Reschedule Button + Date Picker */}
+          <div className="flex items-center bg-slate-900 rounded-lg border border-slate-800/80 p-0.5">
+            <button
+              type="button"
+              onClick={() => onRescheduleTask && onRescheduleTask(task.id, smartNextDateKey)}
+              className="p-1 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded transition-colors"
+              title={`${smartLabel} (${formatDateRu(smartNextDateKey)})`}
+            >
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+            <label
+              className="p-1 text-slate-500 hover:text-cyan-400 hover:bg-slate-800 rounded transition-colors cursor-pointer relative"
+              title="Выбрать другую дату для переноса задачи"
+            >
+              <Calendar className="w-3 h-3" />
+              <input
+                type="date"
+                defaultValue={smartNextDateKey}
+                onChange={(e) => {
+                  if (e.target.value && onRescheduleTask) {
+                    onRescheduleTask(task.id, e.target.value);
+                  }
+                }}
+                className="sr-only"
+              />
+            </label>
+          </div>
+
           <button
             onClick={() => onStartTimerForTask(task)}
             className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-cyan-400 hover:bg-slate-700 transition-colors"
@@ -264,6 +315,27 @@ export default function TodayFocusRoutine({
               : `${completedFilteredCount} из ${visibleTasks.length} выполнено`}
           </span>
         </div>
+
+        {/* Batch Overdue Tasks Banner from Yesterday */}
+        {activeDateKey === realTodayKey && yesterdayOverdueCount > 0 && (
+          <div className="mb-3.5 p-2.5 rounded-xl bg-gradient-to-r from-amber-950/40 via-amber-900/20 to-slate-950/50 border border-amber-500/40 flex items-center justify-between gap-3 text-xs text-amber-200 shadow-sm animate-in fade-in duration-200">
+            <div className="flex items-center gap-2 min-w-0">
+              <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+              <span className="truncate">
+                Со вчера осталось <strong>{yesterdayOverdueCount}</strong> {yesterdayOverdueCount === 1 ? 'незакрытая задача' : yesterdayOverdueCount < 5 ? 'незакрытые задачи' : 'незакрытых задач'}.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={onRescheduleYesterdayOverdue}
+              className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all shrink-0 active:scale-95 shadow-sm"
+              title="Перенести все незакрытые вчерашние задачи на сегодня"
+            >
+              <span>Перенести на сегодня</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* Category Filter Tabs with live counters */}
         <div className="flex items-center justify-between gap-2 mb-3 pb-2.5 border-b border-slate-800/80">
