@@ -22,6 +22,12 @@ import {
   INITIAL_INBOX 
 } from './constants/initialData';
 
+import {
+  generateUniqueId,
+  sanitizePlans,
+  sanitizeHabits
+} from './utils/planUtils';
+
 import { 
   getMondayOfWeek, 
   getWeekDays, 
@@ -48,11 +54,13 @@ export default function App() {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
+        const { sanitized: cleanPlans } = sanitizePlans(parsed.plans || INITIAL_PLANS);
+        const { sanitized: cleanHabits } = sanitizeHabits(parsed.habits || INITIAL_HABITS);
         return {
-          habits: parsed.habits || INITIAL_HABITS,
-          plans: parsed.plans || INITIAL_PLANS,
+          habits: cleanHabits,
+          plans: cleanPlans,
           tasksByDate: parsed.tasksByDate || {},
-          inboxTasks: parsed.inboxTasks || INITIAL_INBOX,
+          inboxTasks: Array.isArray(parsed.inboxTasks) ? parsed.inboxTasks : INITIAL_INBOX,
           habitLogs: parsed.habitLogs || {},
           focusMinutesByDate: parsed.focusMinutesByDate || {},
           supabaseConfig: parsed.supabaseConfig || {
@@ -68,9 +76,12 @@ export default function App() {
       console.warn('Failed to parse localStorage:', e);
     }
 
+    const { sanitized: cleanPlans } = sanitizePlans(INITIAL_PLANS);
+    const { sanitized: cleanHabits } = sanitizeHabits(INITIAL_HABITS);
+
     return {
-      habits: INITIAL_HABITS,
-      plans: INITIAL_PLANS,
+      habits: cleanHabits,
+      plans: cleanPlans,
       tasksByDate: {},
       inboxTasks: INITIAL_INBOX,
       habitLogs: {},
@@ -275,7 +286,7 @@ export default function App() {
             );
             if (!alreadyExists) {
               migratedPlans.push({
-                id: t.id ? `migrated-${t.id}-${Date.now()}` : `plan-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                id: generateUniqueId('migrated'),
                 title: text,
                 category: t.category || 'work',
                 horizon: 'day',
@@ -292,13 +303,33 @@ export default function App() {
       });
 
       if (hasMigration && migratedPlans.length > 0) {
-        setState(prev => ({
-          ...prev,
-          plans: [...prev.plans, ...migratedPlans],
-          tasksByDate: {},
-        }));
+        setState(prev => {
+          const combined = [...prev.plans, ...migratedPlans];
+          const { sanitized } = sanitizePlans(combined);
+          return {
+            ...prev,
+            plans: sanitized,
+            tasksByDate: {},
+          };
+        });
       }
     }
+  }, []);
+
+  // --- Self-Healing: Deduplicate & Sanitize task IDs on initial mount ---
+  useEffect(() => {
+    setState(prev => {
+      const { sanitized: cleanPlans, hasChanges: plansChanged } = sanitizePlans(prev.plans);
+      const { sanitized: cleanHabits, hasChanges: habitsChanged } = sanitizeHabits(prev.habits);
+      if (plansChanged || habitsChanged) {
+        return {
+          ...prev,
+          plans: cleanPlans,
+          habits: cleanHabits,
+        };
+      }
+      return prev;
+    });
   }, []);
 
   // --- 9. Handlers & Actions ---
@@ -321,7 +352,7 @@ export default function App() {
       ...prev,
       inboxTasks: [
         ...prev.inboxTasks,
-        { id: `inbox-${Date.now()}`, text },
+        { id: generateUniqueId('inbox'), text },
       ],
     }));
   };
@@ -336,96 +367,109 @@ export default function App() {
   // Habit Add / Edit / Delete
   const handleSaveHabit = (habitData) => {
     setState(prev => {
-      const exists = prev.habits.some(h => h.id === habitData.id);
+      const targetIndex = habitData.id ? prev.habits.findIndex(h => h.id === habitData.id) : -1;
       let updatedHabits;
-      if (exists) {
-        updatedHabits = prev.habits.map(h => (h.id === habitData.id ? { ...h, ...habitData } : h));
+      if (targetIndex !== -1) {
+        updatedHabits = [...prev.habits];
+        updatedHabits[targetIndex] = { ...updatedHabits[targetIndex], ...habitData };
       } else {
-        updatedHabits = [...prev.habits, habitData];
+        const id = habitData.id || generateUniqueId('habit');
+        updatedHabits = [...prev.habits, { ...habitData, id }];
       }
       return { ...prev, habits: updatedHabits };
     });
   };
 
   const handleDeleteHabit = (habitId) => {
+    if (!habitId) return;
     if (!window.confirm('Удалить эту привычку из панели?')) return;
-    setState(prev => ({
-      ...prev,
-      habits: prev.habits.filter(h => h.id !== habitId),
-    }));
+    setState(prev => {
+      const targetIndex = prev.habits.findIndex(h => h.id === habitId);
+      if (targetIndex === -1) return prev;
+      const newHabits = [...prev.habits];
+      newHabits.splice(targetIndex, 1);
+      return { ...prev, habits: newHabits };
+    });
   };
 
   // Plans Handlers (Multi-Horizon)
   const handleSavePlan = (planData) => {
     setState(prev => {
-      const exists = prev.plans.some(p => p.id === planData.id);
+      const targetIndex = planData.id ? prev.plans.findIndex(p => p.id === planData.id) : -1;
       let updatedPlans;
-      if (exists) {
-        updatedPlans = prev.plans.map(p => (p.id === planData.id ? { ...p, ...planData } : p));
+      if (targetIndex !== -1) {
+        updatedPlans = [...prev.plans];
+        updatedPlans[targetIndex] = { ...updatedPlans[targetIndex], ...planData };
       } else {
-        updatedPlans = [...prev.plans, planData];
+        const id = planData.id || generateUniqueId('plan');
+        updatedPlans = [...prev.plans, { ...planData, id }];
       }
       return { ...prev, plans: updatedPlans };
     });
   };
 
   const handleTogglePlan = (planId) => {
-    setState(prev => ({
-      ...prev,
-      plans: prev.plans.map(p => {
-        if (p.id === planId) {
-          const nextCompleted = !p.completed;
-          return {
-            ...p,
-            completed: nextCompleted,
-            progress: nextCompleted ? 100 : 0,
-          };
-        }
-        return p;
-      }),
-    }));
+    if (!planId) return;
+    setState(prev => {
+      const targetIndex = prev.plans.findIndex(p => p.id === planId);
+      if (targetIndex === -1) return prev;
+      const target = prev.plans[targetIndex];
+      const nextCompleted = !target.completed;
+      const newPlans = [...prev.plans];
+      newPlans[targetIndex] = {
+        ...target,
+        completed: nextCompleted,
+        progress: nextCompleted ? 100 : 0,
+      };
+      return { ...prev, plans: newPlans };
+    });
   };
 
   const handleUpdatePlanProgress = (planId, newProgress) => {
-    setState(prev => ({
-      ...prev,
-      plans: prev.plans.map(p => {
-        if (p.id === planId) {
-          return {
-            ...p,
-            progress: newProgress,
-            completed: newProgress === 100,
-          };
-        }
-        return p;
-      }),
-    }));
+    if (!planId) return;
+    setState(prev => {
+      const targetIndex = prev.plans.findIndex(p => p.id === planId);
+      if (targetIndex === -1) return prev;
+      const newPlans = [...prev.plans];
+      newPlans[targetIndex] = {
+        ...newPlans[targetIndex],
+        progress: newProgress,
+        completed: newProgress === 100,
+      };
+      return { ...prev, plans: newPlans };
+    });
   };
 
   const handleUpdatePlanTitle = (planId, newTitle) => {
-    setState(prev => ({
-      ...prev,
-      plans: prev.plans.map(p => {
-        if (p.id === planId) {
-          return { ...p, title: newTitle };
-        }
-        return p;
-      }),
-    }));
+    if (!planId) return;
+    setState(prev => {
+      const targetIndex = prev.plans.findIndex(p => p.id === planId);
+      if (targetIndex === -1) return prev;
+      const newPlans = [...prev.plans];
+      newPlans[targetIndex] = {
+        ...newPlans[targetIndex],
+        title: newTitle,
+      };
+      return { ...prev, plans: newPlans };
+    });
   };
 
   const handleDeletePlan = (planId) => {
+    if (!planId) return;
     if (!window.confirm('Удалить этот план?')) return;
-    setState(prev => ({
-      ...prev,
-      plans: prev.plans.filter(p => p.id !== planId),
-    }));
+    setState(prev => {
+      const targetIndex = prev.plans.findIndex(p => p.id === planId);
+      if (targetIndex === -1) return prev;
+      const newPlans = [...prev.plans];
+      newPlans.splice(targetIndex, 1);
+      return { ...prev, plans: newPlans };
+    });
   };
 
   const handleQuickAddTask = (category, horizon, targetPeriod, text) => {
     if (!text || !text.trim()) return;
     const newPlan = {
-      id: `plan-${Date.now()}`,
+      id: generateUniqueId('plan'),
       title: text.trim(),
       category,
       horizon,
@@ -446,34 +490,35 @@ export default function App() {
   };
 
   const handleUpdatePlanCategory = (planId, newCategory) => {
+    if (!planId) return;
     sound.playCheckmarkClick();
-    setState(prev => ({
-      ...prev,
-      plans: prev.plans.map(p => {
-        if (p.id === planId) {
-          return { ...p, category: newCategory };
-        }
-        return p;
-      }),
-    }));
+    setState(prev => {
+      const targetIndex = prev.plans.findIndex(p => p.id === planId);
+      if (targetIndex === -1) return prev;
+      const newPlans = [...prev.plans];
+      newPlans[targetIndex] = {
+        ...newPlans[targetIndex],
+        category: newCategory,
+      };
+      return { ...prev, plans: newPlans };
+    });
   };
 
   const handleReschedulePlan = (planId, targetDateKey) => {
+    if (!planId || !targetDateKey) return;
     sound.playCheckmarkClick();
-    setState(prev => ({
-      ...prev,
-      plans: prev.plans.map(p => {
-        if (p.id === planId) {
-          return {
-            ...p,
-            targetPeriod: targetDateKey,
-            completed: false,
-            progress: 0,
-          };
-        }
-        return p;
-      }),
-    }));
+    setState(prev => {
+      const targetIndex = prev.plans.findIndex(p => p.id === planId);
+      if (targetIndex === -1) return prev;
+      const newPlans = [...prev.plans];
+      newPlans[targetIndex] = {
+        ...newPlans[targetIndex],
+        targetPeriod: targetDateKey,
+        completed: false,
+        progress: 0,
+      };
+      return { ...prev, plans: newPlans };
+    });
   };
 
   const handleRescheduleOverduePlans = (fromDateKey, toDateKey) => {
@@ -500,7 +545,7 @@ export default function App() {
 
     sound.playCheckmarkClick();
     const newPlan = {
-      id: `plan-${Date.now()}`,
+      id: generateUniqueId('plan'),
       title: item.text,
       category: category || 'work',
       horizon: 'day',
@@ -607,7 +652,13 @@ export default function App() {
       setSyncStatus(prev => ({ ...prev, isSyncing: true }));
       const res = await pullFromSupabase(config);
       if (res.found && res.payload) {
-        setState(res.payload);
+        const { sanitized: cleanPlans } = sanitizePlans(res.payload.plans);
+        const { sanitized: cleanHabits } = sanitizeHabits(res.payload.habits);
+        setState({
+          ...res.payload,
+          plans: cleanPlans,
+          habits: cleanHabits,
+        });
         setSyncStatus({
           connected: true,
           synced: true,
@@ -627,7 +678,13 @@ export default function App() {
 
   // Full State Restore from Backup
   const handleRestoreState = (restoredState) => {
-    setState(restoredState);
+    const { sanitized: cleanPlans } = sanitizePlans(restoredState.plans);
+    const { sanitized: cleanHabits } = sanitizeHabits(restoredState.habits);
+    setState({
+      ...restoredState,
+      plans: cleanPlans,
+      habits: cleanHabits,
+    });
   };
 
   // Reset all progress to clean 0%

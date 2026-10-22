@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar } from 'lucide-react';
 import { CATEGORIES } from '../../constants/initialData';
+import { generateUniqueId } from '../../utils/planUtils';
 
 export default function GoalModal({
   isOpen,
@@ -37,7 +38,7 @@ export default function GoalModal({
     if (!title.trim() || !targetDate) return;
 
     onSaveGoal({
-      id: goalToEdit ? goalToEdit.id : `goal-${Date.now()}`,
+      id: goalToEdit ? goalToEdit.id : generateUniqueId('goal'),
       title: title.trim(),
       category,
       targetDate,

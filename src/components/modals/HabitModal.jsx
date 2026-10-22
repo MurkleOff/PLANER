@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Check, Flame, Calendar, Sparkles } from 'lucide-react';
 import { CATEGORIES } from '../../constants/initialData';
 import { DAYS_SHORT, DAYS_FULL } from '../../utils/dateUtils';
+import { generateUniqueId } from '../../utils/planUtils';
 
 export default function HabitModal({
   isOpen,
@@ -67,7 +68,7 @@ export default function HabitModal({
     if (!title.trim()) return;
 
     onSaveHabit({
-      id: habitToEdit ? habitToEdit.id : `habit-${Date.now()}`,
+      id: habitToEdit ? habitToEdit.id : generateUniqueId('habit'),
       title: title.trim(),
       category,
       targetPerWeek: Number(targetPerWeek),

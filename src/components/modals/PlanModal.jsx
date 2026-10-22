@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, CheckSquare, Target } from 'lucide-react';
 import { CATEGORIES } from '../../constants/initialData';
+import { generateUniqueId } from '../../utils/planUtils';
 
 export default function PlanModal({
   isOpen,
@@ -47,7 +48,7 @@ export default function PlanModal({
     if (!title.trim()) return;
 
     onSavePlan({
-      id: planToEdit ? planToEdit.id : `plan-${Date.now()}`,
+      id: planToEdit ? planToEdit.id : generateUniqueId('plan'),
       title: title.trim(),
       category,
       horizon,

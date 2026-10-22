@@ -211,22 +211,29 @@ export default function TodayFocusRoutine({
           <div className="flex items-center bg-slate-900 rounded-lg border border-slate-800/80 p-0.5">
             <button
               type="button"
-              onClick={() => onRescheduleTask && onRescheduleTask(task.id, smartNextDateKey)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (onRescheduleTask && task?.id) onRescheduleTask(task.id, smartNextDateKey);
+              }}
               className="p-1 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded transition-colors"
               title={`${smartLabel} (${formatDateRu(smartNextDateKey)})`}
             >
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
             <label
+              onClick={(e) => e.stopPropagation()}
               className="p-1 text-slate-500 hover:text-cyan-400 hover:bg-slate-800 rounded transition-colors cursor-pointer relative"
               title="Выбрать другую дату для переноса задачи"
             >
               <Calendar className="w-3 h-3" />
               <input
                 type="date"
-                defaultValue={smartNextDateKey}
+                value={task.targetPeriod || smartNextDateKey}
+                onClick={(e) => e.stopPropagation()}
                 onChange={(e) => {
-                  if (e.target.value && onRescheduleTask) {
+                  e.stopPropagation();
+                  if (e.target.value && onRescheduleTask && task?.id) {
                     onRescheduleTask(task.id, e.target.value);
                   }
                 }}

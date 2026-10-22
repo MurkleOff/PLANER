@@ -495,22 +495,30 @@ export default function PlanningHorizons({
                               {onReschedulePlan && (
                                 <div className="flex items-center bg-slate-900 rounded border border-slate-800 p-0.5">
                                   <button
-                                    onClick={() => onReschedulePlan(task.id, getSmartNextDay(dayDate))}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (onReschedulePlan && task?.id) onReschedulePlan(task.id, getSmartNextDay(dayDate));
+                                    }}
                                     className="p-1 text-slate-500 hover:text-amber-400 transition-colors"
                                     title={`Перенести на ${dayDate < realTodayKey ? 'сегодня' : 'завтра'} (${formatDateRu(getSmartNextDay(dayDate))})`}
                                   >
                                     <ArrowRight className="w-3 h-3" />
                                   </button>
                                   <label
+                                    onClick={(e) => e.stopPropagation()}
                                     className="p-1 text-slate-600 hover:text-cyan-400 cursor-pointer relative"
                                     title="Выбрать другую дату"
                                   >
                                     <Calendar className="w-2.5 h-2.5" />
                                     <input
                                       type="date"
-                                      defaultValue={getSmartNextDay(dayDate)}
+                                      value={task.targetPeriod || getSmartNextDay(dayDate)}
+                                      onClick={(e) => e.stopPropagation()}
                                       onChange={(e) => {
-                                        if (e.target.value && onReschedulePlan) {
+                                        e.stopPropagation();
+                                        if (e.target.value && onReschedulePlan && task?.id) {
                                           onReschedulePlan(task.id, e.target.value);
                                         }
                                       }}
@@ -875,22 +883,30 @@ export default function PlanningHorizons({
                               {activeHorizon === 'day' && onReschedulePlan && (
                                 <div className="flex items-center bg-slate-900 rounded border border-slate-800 p-0.5">
                                   <button
-                                    onClick={() => onReschedulePlan(task.id, getSmartNextDay(dayDate))}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (onReschedulePlan && task?.id) onReschedulePlan(task.id, getSmartNextDay(dayDate));
+                                    }}
                                     className="p-1 text-slate-500 hover:text-amber-400 transition-colors"
                                     title={`Перенести на ${dayDate < realTodayKey ? 'сегодня' : 'завтра'} (${formatDateRu(getSmartNextDay(dayDate))})`}
                                   >
                                     <ArrowRight className="w-3 h-3" />
                                   </button>
                                   <label
+                                    onClick={(e) => e.stopPropagation()}
                                     className="p-1 text-slate-600 hover:text-cyan-400 cursor-pointer relative"
                                     title="Выбрать другую дату"
                                   >
                                     <Calendar className="w-2.5 h-2.5" />
                                     <input
                                       type="date"
-                                      defaultValue={getSmartNextDay(dayDate)}
+                                      value={task.targetPeriod || getSmartNextDay(dayDate)}
+                                      onClick={(e) => e.stopPropagation()}
                                       onChange={(e) => {
-                                        if (e.target.value && onReschedulePlan) {
+                                        e.stopPropagation();
+                                        if (e.target.value && onReschedulePlan && task?.id) {
                                           onReschedulePlan(task.id, e.target.value);
                                         }
                                       }}
