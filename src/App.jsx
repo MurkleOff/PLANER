@@ -434,6 +434,19 @@ export default function App() {
     handleQuickAddTask(category, 'day', activeDateKey, title);
   };
 
+  const handleUpdatePlanCategory = (planId, newCategory) => {
+    sound.playCheckmarkClick();
+    setState(prev => ({
+      ...prev,
+      plans: prev.plans.map(p => {
+        if (p.id === planId) {
+          return { ...p, category: newCategory };
+        }
+        return p;
+      }),
+    }));
+  };
+
   const handlePromoteInboxToTodayTask = (inboxId, category = 'work') => {
     const item = state.inboxTasks.find(x => x.id === inboxId);
     if (!item) return;
@@ -674,6 +687,7 @@ export default function App() {
                 todayTasks={todayTasksForActiveDate}
                 onToggleTodayTask={handleTogglePlan}
                 onUpdateTodayTaskText={handleUpdatePlanTitle}
+                onUpdateTodayTaskCategory={handleUpdatePlanCategory}
                 onDeleteTodayTask={handleDeletePlan}
                 onAddTodayTask={handleAddTodayTask}
                 inboxTasks={state.inboxTasks}

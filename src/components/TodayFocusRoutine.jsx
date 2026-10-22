@@ -25,6 +25,7 @@ export default function TodayFocusRoutine({
   todayTasks = [],
   onToggleTodayTask,
   onUpdateTodayTaskText,
+  onUpdateTodayTaskCategory,
   onDeleteTodayTask,
   onAddTodayTask,
   inboxTasks = [],
@@ -38,6 +39,11 @@ export default function TodayFocusRoutine({
   const [isInboxOpen, setIsInboxOpen] = useState(false);
   const [newInboxText, setNewInboxText] = useState('');
   
+  // Category filter state: 'all' | 'training' | 'work' | 'study' | 'personality'
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState('all');
+  // View mode when 'all' is active: 'flat' (unified list) | 'grouped' (grouped by spheres)
+  const [allViewMode, setAllViewMode] = useState('flat');
+
   // Quick task input state for today
   const [newTodayTaskText, setNewTodayTaskText] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('work');
@@ -50,6 +56,13 @@ export default function TodayFocusRoutine({
   const activeDateKey = activeDay.dateKey;
 
   const completedTasksCount = todayTasks.filter(t => t.completed).length;
+
+  // Filter tasks based on activeCategoryFilter
+  const visibleTasks = activeCategoryFilter === 'all'
+    ? todayTasks
+    : todayTasks.filter(t => t.category === activeCategoryFilter);
+
+  const completedFilteredCount = visibleTasks.filter(t => t.completed).length;
 
   const handleCheckboxClick = (habit) => {
     sound.playCheckmarkClick();
@@ -85,6 +98,109 @@ export default function TodayFocusRoutine({
     if (!newInboxText.trim()) return;
     onAddInboxTask(newInboxText.trim());
     setNewInboxText('');
+  };
+
+  const renderTaskItem = (task) => {
+    const isEditing = editingTaskId === task.id;
+    const category = CATEGORIES[task.category] || CATEGORIES.work || Object.values(CATEGORIES)[0];
+
+    return (
+      <div
+        key={task.id}
+        className={`p-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+          task.completed
+            ? 'bg-slate-950/40 border-slate-800/60 text-slate-500'
+            : 'bg-slate-950/80 border-slate-800 hover:border-slate-700'
+        }`}
+      >
+        {/* Tactile Checkbox */}
+        <button
+          onClick={() => handleTodayTaskCheck(task.id)}
+          className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 transition-all ${
+            task.completed
+              ? 'bg-emerald-500 border-emerald-500 text-slate-950 shadow-sm shadow-emerald-500/30'
+              : 'border-slate-700 bg-slate-900 hover:border-indigo-400'
+          }`}
+          title={task.completed ? 'Снять отметку' : 'Отметить выполненной'}
+        >
+          {task.completed && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+        </button>
+
+        {/* Task Details & Inline Edit */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 mb-1">
+            {/* Interactive Category Selector Badge */}
+            <select
+              value={task.category || 'work'}
+              onChange={(e) => {
+                if (onUpdateTodayTaskCategory) {
+                  onUpdateTodayTaskCategory(task.id, e.target.value);
+                }
+              }}
+              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md border bg-slate-950 cursor-pointer focus:outline-none transition-colors ${category.badgeClass}`}
+              title="Кликните, чтобы изменить сферу задачи"
+            >
+              {Object.values(CATEGORIES).map(c => (
+                <option key={c.id} value={c.id} className="bg-slate-900 text-slate-200">
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {isEditing ? (
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                value={editTaskValue}
+                onChange={(e) => setEditTaskValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveEdit(task.id);
+                  if (e.key === 'Escape') setEditingTaskId(null);
+                }}
+                autoFocus
+                className="w-full bg-slate-900 border border-indigo-500/60 rounded-lg px-2 py-0.5 text-xs text-white focus:outline-none"
+              />
+              <button
+                onClick={() => handleSaveEdit(task.id)}
+                className="px-2 py-0.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 shrink-0 font-medium"
+              >
+                ОК
+              </button>
+            </div>
+          ) : (
+            <div
+              onClick={() => handleStartEditing(task)}
+              className={`text-xs cursor-pointer group flex items-center justify-between gap-2 ${
+                task.completed ? 'line-through text-slate-500' : 'text-slate-200'
+              }`}
+              title="Кликните для редактирования задачи"
+            >
+              <span className="truncate">{task.title || task.text}</span>
+              <Edit3 className="w-3 h-3 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+            </div>
+          )}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => onStartTimerForTask(task)}
+            className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-cyan-400 hover:bg-slate-700 transition-colors"
+            title="Запустить Deep Work таймер на эту задачу"
+          >
+            <Play className="w-3.5 h-3.5 fill-current" />
+          </button>
+          <button
+            onClick={() => onDeleteTodayTask(task.id)}
+            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+            title="Удалить задачу"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -126,7 +242,7 @@ export default function TodayFocusRoutine({
 
       {/* 2. Real Tasks of the Day */}
       <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800/90 shadow-sm">
-        <div className="flex items-center justify-between mb-3.5">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-lg bg-indigo-500/15 text-indigo-400 flex items-center justify-center font-bold">
               <CheckSquare className="w-3.5 h-3.5" />
@@ -138,37 +254,120 @@ export default function TodayFocusRoutine({
             </div>
           </div>
           <span className={`text-xs font-mono font-semibold px-2 py-0.5 rounded-full border ${
-            todayTasks.length > 0 && completedTasksCount === todayTasks.length
+            (activeCategoryFilter === 'all' ? todayTasks.length : visibleTasks.length) > 0 &&
+            (activeCategoryFilter === 'all' ? completedTasksCount === todayTasks.length : completedFilteredCount === visibleTasks.length)
               ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
               : 'bg-slate-800 text-slate-300 border-slate-700'
           }`}>
-            {completedTasksCount} из {todayTasks.length} выполнено
+            {activeCategoryFilter === 'all' 
+              ? `${completedTasksCount} из ${todayTasks.length} выполнено`
+              : `${completedFilteredCount} из ${visibleTasks.length} выполнено`}
           </span>
+        </div>
+
+        {/* Category Filter Tabs with live counters */}
+        <div className="flex items-center justify-between gap-2 mb-3 pb-2.5 border-b border-slate-800/80">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+            {/* Tab: Все сферы (все задачи дня) */}
+            <button
+              type="button"
+              onClick={() => setActiveCategoryFilter('all')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 border flex items-center gap-1.5 ${
+                activeCategoryFilter === 'all'
+                  ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/30'
+                  : 'border-slate-800 bg-slate-950/70 text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+              }`}
+            >
+              <span>Все сферы</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                activeCategoryFilter === 'all' ? 'bg-indigo-700/80 text-white' : 'bg-slate-800 text-slate-400'
+              }`}>
+                {todayTasks.length}
+              </span>
+            </button>
+
+            {/* Individual Sphere Filter Tabs */}
+            {Object.values(CATEGORIES).map(cat => {
+              const count = todayTasks.filter(t => t.category === cat.id).length;
+              const isSelected = activeCategoryFilter === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveCategoryFilter(cat.id);
+                    setSelectedCategory(cat.id);
+                  }}
+                  className={`px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all shrink-0 border flex items-center gap-1.5 ${
+                    isSelected
+                      ? `${cat.badgeClass} ring-1 ring-current font-bold scale-102 shadow-sm`
+                      : 'border-slate-800 bg-slate-950/70 text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${cat.dotClass}`} />
+                  <span>{cat.name}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                    isSelected ? 'bg-black/30' : 'bg-slate-800/80 text-slate-400'
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Toggle View Mode (Flat / Grouped) when 'all' is active */}
+          {activeCategoryFilter === 'all' && todayTasks.length > 0 && (
+            <div className="hidden sm:flex items-center gap-0.5 bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[11px] shrink-0">
+              <button
+                type="button"
+                onClick={() => setAllViewMode('flat')}
+                className={`px-2 py-0.5 rounded transition-colors ${
+                  allViewMode === 'flat' ? 'bg-slate-800 text-slate-200 font-semibold' : 'text-slate-500 hover:text-slate-300'
+                }`}
+                title="Показать единым списком"
+              >
+                Списком
+              </button>
+              <button
+                type="button"
+                onClick={() => setAllViewMode('grouped')}
+                className={`px-2 py-0.5 rounded transition-colors ${
+                  allViewMode === 'grouped' ? 'bg-slate-800 text-slate-200 font-semibold' : 'text-slate-500 hover:text-slate-300'
+                }`}
+                title="Разбить по 4 сферам"
+              >
+                По сферам
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Quick Add Form directly in this block */}
         <form onSubmit={handleAddTodayTaskSubmit} className="mb-3.5 space-y-2 p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/70">
-          {/* Category Selector Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
-              Сфера:
-            </span>
-            {Object.values(CATEGORIES).map(cat => (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => setSelectedCategory(cat.id)}
-                className={`px-2 py-0.5 rounded-lg text-[11px] font-medium transition-all shrink-0 border flex items-center gap-1 ${
-                  selectedCategory === cat.id
-                    ? `${cat.badgeClass} ring-1 ring-current font-bold scale-102`
-                    : 'border-slate-800/80 bg-slate-900 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                }`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${cat.dotClass}`} />
-                <span>{cat.name}</span>
-              </button>
-            ))}
-          </div>
+          {/* If "Все сферы" is selected, choose which sphere to add to */}
+          {activeCategoryFilter === 'all' && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
+                Куда добавить:
+              </span>
+              {Object.values(CATEGORIES).map(cat => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`px-2 py-0.5 rounded-lg text-[11px] font-medium transition-all shrink-0 border flex items-center gap-1 ${
+                    selectedCategory === cat.id
+                      ? `${cat.badgeClass} ring-1 ring-current font-bold scale-102`
+                      : 'border-slate-800/80 bg-slate-900 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${cat.dotClass}`} />
+                  <span>{cat.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Text Input + Add Button */}
           <div className="flex items-center gap-1.5">
@@ -200,96 +399,80 @@ export default function TodayFocusRoutine({
               Введите задачу в поле выше или перенесите дело из Inbox.
             </p>
           </div>
-        ) : (
-          <div className="space-y-2 mb-3 max-h-80 overflow-y-auto pr-0.5">
-            {todayTasks.map((task) => {
-              const isEditing = editingTaskId === task.id;
-              const category = CATEGORIES[task.category] || CATEGORIES.work || Object.values(CATEGORIES)[0];
+        ) : activeCategoryFilter === 'all' && allViewMode === 'grouped' ? (
+          <div className="space-y-3 mb-3 max-h-96 overflow-y-auto pr-0.5">
+            {Object.values(CATEGORIES).map(cat => {
+              const sphereTasks = todayTasks.filter(t => t.category === cat.id);
+              if (sphereTasks.length === 0) return null;
 
               return (
-                <div
-                  key={task.id}
-                  className={`p-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 ${
-                    task.completed
-                      ? 'bg-slate-950/40 border-slate-800/60 text-slate-500'
-                      : 'bg-slate-950/80 border-slate-800 hover:border-slate-700'
-                  }`}
-                >
-                  {/* Tactile Checkbox */}
-                  <button
-                    onClick={() => handleTodayTaskCheck(task.id)}
-                    className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 transition-all ${
-                      task.completed
-                        ? 'bg-emerald-500 border-emerald-500 text-slate-950 shadow-sm shadow-emerald-500/30'
-                        : 'border-slate-700 bg-slate-900 hover:border-indigo-400'
-                    }`}
-                    title={task.completed ? 'Снять отметку' : 'Отметить выполненной'}
-                  >
-                    {task.completed && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                  </button>
-
-                  {/* Task Details & Inline Edit */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className={`text-[9px] px-1.5 py-0.2 rounded font-medium border ${category.badgeClass}`}>
-                        {category.name}
+                <div key={cat.id} className="p-2.5 rounded-xl bg-slate-950/50 border border-slate-800/70 space-y-2">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-slate-800/60">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`w-2 h-2 rounded-full ${cat.dotClass}`} />
+                      <span className="text-xs font-bold text-slate-200 uppercase tracking-wide">
+                        {cat.name}
+                      </span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono border ${cat.badgeClass}`}>
+                        {sphereTasks.filter(t => t.completed).length}/{sphereTasks.length}
                       </span>
                     </div>
-
-                    {isEditing ? (
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="text"
-                          value={editTaskValue}
-                          onChange={(e) => setEditTaskValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveEdit(task.id);
-                            if (e.key === 'Escape') setEditingTaskId(null);
-                          }}
-                          autoFocus
-                          className="w-full bg-slate-900 border border-indigo-500/60 rounded-lg px-2 py-0.5 text-xs text-white focus:outline-none"
-                        />
-                        <button
-                          onClick={() => handleSaveEdit(task.id)}
-                          className="px-2 py-0.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 shrink-0"
-                        >
-                          ОК
-                        </button>
-                      </div>
-                    ) : (
-                      <div
-                        onClick={() => handleStartEditing(task)}
-                        className={`text-xs cursor-pointer group flex items-center justify-between gap-2 ${
-                          task.completed ? 'line-through text-slate-500' : 'text-slate-200'
-                        }`}
-                        title="Кликните для редактирования задачи"
-                      >
-                        <span className="truncate">{task.title || task.text}</span>
-                        <Edit3 className="w-3 h-3 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                      </div>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveCategoryFilter(cat.id);
+                        setSelectedCategory(cat.id);
+                      }}
+                      className="text-[10px] text-indigo-400 hover:text-indigo-300 transition-colors"
+                    >
+                      Только {cat.name} →
+                    </button>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => onStartTimerForTask(task)}
-                      className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-cyan-400 hover:bg-slate-700 transition-colors"
-                      title="Запустить Deep Work таймер на эту задачу"
-                    >
-                      <Play className="w-3.5 h-3.5 fill-current" />
-                    </button>
-                    <button
-                      onClick={() => onDeleteTodayTask(task.id)}
-                      className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors"
-                      title="Удалить задачу"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                  <div className="space-y-1.5">
+                    {sphereTasks.map(task => renderTaskItem(task))}
                   </div>
                 </div>
               );
             })}
+
+            {/* Hint for spheres without tasks */}
+            {Object.values(CATEGORIES).filter(cat => todayTasks.every(t => t.category !== cat.id)).length > 0 && (
+              <div className="text-[11px] text-slate-500 px-1 pt-1 flex items-center gap-2 flex-wrap">
+                <span>Без задач сегодня:</span>
+                {Object.values(CATEGORIES)
+                  .filter(cat => todayTasks.every(t => t.category !== cat.id))
+                  .map(cat => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveCategoryFilter(cat.id);
+                        setSelectedCategory(cat.id);
+                      }}
+                      className="text-slate-400 hover:text-slate-200 underline underline-offset-2 flex items-center gap-1"
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${cat.dotClass}`} />
+                      <span>{cat.name} (+ добавить)</span>
+                    </button>
+                  ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2 mb-3 max-h-80 overflow-y-auto pr-0.5">
+            {visibleTasks.length === 0 ? (
+              <div className="py-6 px-4 rounded-xl border border-dashed border-slate-800/80 bg-slate-950/40 text-center">
+                <p className="text-xs text-slate-300 mb-1">
+                  В сфере «{CATEGORIES[activeCategoryFilter]?.name || 'выбранной'}» на этот день задач нет.
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Введите задачу в поле выше, чтобы добавить её в эту сферу.
+                </p>
+              </div>
+            ) : (
+              visibleTasks.map(task => renderTaskItem(task))
+            )}
           </div>
         )}
 
