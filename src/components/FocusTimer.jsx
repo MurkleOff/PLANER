@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, RotateCcw, CheckCircle2, Volume2, Bell, Sparkles } from 'lucide-react';
 import { sound } from '../utils/audio';
+import { CATEGORIES } from '../constants/initialData';
 
 export default function FocusTimer({
   habits,
@@ -74,7 +75,7 @@ export default function FocusTimer({
     }
     if (targetType === 'task') {
       const t = topTasks.find(x => x.id === selectedTargetId);
-      return t ? t.text : 'Главная задача';
+      return t ? (t.title || t.text) : 'Задача дня';
     }
     return customTargetTitle || 'Фокус сессия';
   };
@@ -211,7 +212,7 @@ export default function FocusTimer({
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          Топ-3 дня
+          Задача дня
         </button>
         <button
           onClick={() => { setTargetType('custom'); }}
@@ -247,9 +248,9 @@ export default function FocusTimer({
             </select>
           )
         ) : targetType === 'task' ? (
-          topTasks.filter(t => t.text.trim()).length === 0 ? (
+          topTasks.length === 0 ? (
             <div className="text-xs text-slate-500 py-1.5 px-3 bg-slate-950 rounded-xl border border-slate-800 text-center">
-              Задачи на день не заданы. Введите задачу в Топ-3 или выберите «Свой фокус».
+              Задачи на день не заданы. Добавьте задачу в блоке дня или выберите «Свой фокус».
             </div>
           ) : (
             <select
@@ -258,11 +259,14 @@ export default function FocusTimer({
               disabled={isRunning}
               className="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500/50"
             >
-              {topTasks.map(t => (
-                <option key={t.id} value={t.id}>
-                  {t.text || `Слот задачи`} {t.completed ? '✓' : ''}
-                </option>
-              ))}
+              {topTasks.map(t => {
+                const catName = CATEGORIES[t.category]?.name;
+                return (
+                  <option key={t.id} value={t.id}>
+                    {t.title || t.text} {catName ? `(${catName})` : ''} {t.completed ? '✓' : ''}
+                  </option>
+                );
+              })}
             </select>
           )
         ) : (

@@ -153,16 +153,12 @@ export default function App() {
   const activeDay = weekDays[selectedDayIndex] || weekDays[0];
   const activeDateKey = activeDay.dateKey;
 
-  // --- 4. Daily Tasks for Active Date ---
-  const topTasksForActiveDate = useMemo(() => {
-    const existing = state.tasksByDate[activeDateKey];
-    if (existing && existing.length === 3) return existing;
-    return [
-      { id: `top-${activeDateKey}-1`, text: '', completed: false },
-      { id: `top-${activeDateKey}-2`, text: '', completed: false },
-      { id: `top-${activeDateKey}-3`, text: '', completed: false },
-    ];
-  }, [state.tasksByDate, activeDateKey]);
+  // --- 4. Actual Real Tasks for Active Date (From state.plans) ---
+  const todayTasksForActiveDate = useMemo(() => {
+    return state.plans.filter(
+      p => p.horizon === 'day' && p.targetPeriod === activeDateKey && (p.type === 'checkbox' || !p.type)
+    );
+  }, [state.plans, activeDateKey]);
 
   // --- 5. Metrics Calculations ---
   const dailyChargeMetrics = useMemo(() => {
@@ -172,17 +168,23 @@ export default function App() {
       selectedDayIndex,
       activeDateKey,
       state.habitLogs,
-      topTasksForActiveDate
+      todayTasksForActiveDate
     );
-  }, [state.habits, weekDays, selectedDayIndex, activeDateKey, state.habitLogs, topTasksForActiveDate]);
+  }, [state.habits, weekDays, selectedDayIndex, activeDateKey, state.habitLogs, todayTasksForActiveDate]);
 
   const disciplineMetrics = useMemo(() => {
     return calculateDisciplineIndex(state.habits, weekDays, state.habitLogs);
   }, [state.habits, weekDays, state.habitLogs]);
 
   const weekDynamics = useMemo(() => {
-    return calculateWeekDynamics(state.habits, weekDays, state.habitLogs, state.tasksByDate);
-  }, [state.habits, weekDays, state.habitLogs, state.tasksByDate]);
+    const tasksMap = {};
+    weekDays.forEach(day => {
+      tasksMap[day.dateKey] = state.plans.filter(
+        p => p.horizon === 'day' && p.targetPeriod === day.dateKey && (p.type === 'checkbox' || !p.type)
+      );
+    });
+    return calculateWeekDynamics(state.habits, weekDays, state.habitLogs, tasksMap);
+  }, [state.habits, weekDays, state.habitLogs, state.plans]);
 
   const totalStreakCount = useMemo(() => {
     return state.habits.reduce((acc, h) => {
@@ -196,7 +198,7 @@ export default function App() {
   // --- 6. Celebratory Confetti on 100% Daily Charge ---
   const prevChargeRef = useRef(dailyChargeMetrics.dailyCharge);
   useEffect(() => {
-    if (dailyChargeMetrics.dailyCharge === 100 && prevChargeRef.current < 100 && (state.habits.length > 0 || topTasksForActiveDate.some(t => t.completed))) {
+    if (dailyChargeMetrics.dailyCharge === 100 && prevChargeRef.current < 100 && (state.habits.length > 0 || todayTasksForActiveDate.some(t => t.completed))) {
       sound.playCelebrationChime();
       try {
         confetti({
@@ -210,7 +212,7 @@ export default function App() {
       }
     }
     prevChargeRef.current = dailyChargeMetrics.dailyCharge;
-  }, [dailyChargeMetrics.dailyCharge, state.habits.length, topTasksForActiveDate]);
+  }, [dailyChargeMetrics.dailyCharge, state.habits.length, todayTasksForActiveDate]);
 
   // --- 7. Modals State ---
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
@@ -246,6 +248,48 @@ export default function App() {
     }
   }, [isDark]);
 
+  // --- One-time Migration from legacy tasksByDate to state.plans ---
+  useEffect(() => {
+    if (state.tasksByDate && Object.keys(state.tasksByDate).length > 0) {
+      const migratedPlans = [];
+      let hasMigration = false;
+
+      Object.entries(state.tasksByDate).forEach(([dateKey, tasks]) => {
+        if (!Array.isArray(tasks)) return;
+        tasks.forEach(t => {
+          const text = (t.text || t.title || '').trim();
+          if (text && !text.toLowerCase().startsWith('главная задача')) {
+            const alreadyExists = state.plans.some(
+              p => p.horizon === 'day' && p.targetPeriod === dateKey && p.title.trim().toLowerCase() === text.toLowerCase()
+            );
+            if (!alreadyExists) {
+              migratedPlans.push({
+                id: t.id ? `migrated-${t.id}-${Date.now()}` : `plan-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                title: text,
+                category: t.category || 'work',
+                horizon: 'day',
+                targetPeriod: dateKey,
+                type: 'checkbox',
+                completed: !!t.completed,
+                progress: t.completed ? 100 : 0,
+                deadline: null,
+              });
+              hasMigration = true;
+            }
+          }
+        });
+      });
+
+      if (hasMigration && migratedPlans.length > 0) {
+        setState(prev => ({
+          ...prev,
+          plans: [...prev.plans, ...migratedPlans],
+          tasksByDate: {},
+        }));
+      }
+    }
+  }, []);
+
   // --- 9. Handlers & Actions ---
 
   // Habit Toggle
@@ -258,46 +302,6 @@ export default function App() {
         [key]: !prev.habitLogs[key],
       },
     }));
-  };
-
-  // Top Task Toggle
-  const handleToggleTopTask = (taskId, dateKey) => {
-    setState(prev => {
-      const currentList = prev.tasksByDate[dateKey] || topTasksForActiveDate;
-      const updated = currentList.map(t => {
-        if (t.id === taskId) {
-          return { ...t, completed: !t.completed };
-        }
-        return t;
-      });
-      return {
-        ...prev,
-        tasksByDate: {
-          ...prev.tasksByDate,
-          [dateKey]: updated,
-        },
-      };
-    });
-  };
-
-  // Top Task Edit Text
-  const handleUpdateTopTaskText = (taskId, newText, dateKey) => {
-    setState(prev => {
-      const currentList = prev.tasksByDate[dateKey] || topTasksForActiveDate;
-      const updated = currentList.map(t => {
-        if (t.id === taskId) {
-          return { ...t, text: newText };
-        }
-        return t;
-      });
-      return {
-        ...prev,
-        tasksByDate: {
-          ...prev.tasksByDate,
-          [dateKey]: updated,
-        },
-      };
-    });
   };
 
   // Inbox Task Actions
@@ -316,33 +320,6 @@ export default function App() {
       ...prev,
       inboxTasks: prev.inboxTasks.filter(item => item.id !== id),
     }));
-  };
-
-  const handlePromoteInboxToTopTask = (inboxId, dateKey) => {
-    const item = state.inboxTasks.find(x => x.id === inboxId);
-    if (!item) return;
-
-    setState(prev => {
-      const currentList = prev.tasksByDate[dateKey] || topTasksForActiveDate;
-      let slotIndex = currentList.findIndex(t => !t.text.trim());
-      if (slotIndex === -1) slotIndex = 0;
-
-      const updated = [...currentList];
-      updated[slotIndex] = {
-        ...updated[slotIndex],
-        text: item.text,
-        completed: false,
-      };
-
-      return {
-        ...prev,
-        inboxTasks: prev.inboxTasks.filter(x => x.id !== inboxId),
-        tasksByDate: {
-          ...prev.tasksByDate,
-          [dateKey]: updated,
-        },
-      };
-    });
   };
 
   // Habit Add / Edit / Delete
@@ -453,29 +430,32 @@ export default function App() {
     }));
   };
 
-  const handlePromotePlanToTopTask = (taskTitle, dateKey) => {
-    if (!taskTitle) return;
+  const handleAddTodayTask = (title, category = 'work') => {
+    handleQuickAddTask(category, 'day', activeDateKey, title);
+  };
+
+  const handlePromoteInboxToTodayTask = (inboxId, category = 'work') => {
+    const item = state.inboxTasks.find(x => x.id === inboxId);
+    if (!item) return;
+
     sound.playCheckmarkClick();
-    setState(prev => {
-      const currentList = prev.tasksByDate[dateKey] || topTasksForActiveDate;
-      let slotIndex = currentList.findIndex(t => !t.text.trim());
-      if (slotIndex === -1) slotIndex = 0;
+    const newPlan = {
+      id: `plan-${Date.now()}`,
+      title: item.text,
+      category: category || 'work',
+      horizon: 'day',
+      targetPeriod: activeDateKey,
+      type: 'checkbox',
+      completed: false,
+      progress: 0,
+      deadline: null,
+    };
 
-      const updated = [...currentList];
-      updated[slotIndex] = {
-        ...updated[slotIndex],
-        text: taskTitle,
-        completed: false,
-      };
-
-      return {
-        ...prev,
-        tasksByDate: {
-          ...prev.tasksByDate,
-          [dateKey]: updated,
-        },
-      };
-    });
+    setState(prev => ({
+      ...prev,
+      inboxTasks: prev.inboxTasks.filter(x => x.id !== inboxId),
+      plans: [...prev.plans, newPlan],
+    }));
   };
 
   // Timer complete hook
@@ -489,19 +469,7 @@ export default function App() {
           [key]: true,
         },
       }));
-    } else if (type === 'task') {
-      setState(prev => {
-        const currentList = prev.tasksByDate[dateKey] || topTasksForActiveDate;
-        const updated = currentList.map(t => (t.id === id ? { ...t, completed: true } : t));
-        return {
-          ...prev,
-          tasksByDate: {
-            ...prev.tasksByDate,
-            [dateKey]: updated,
-          },
-        };
-      });
-    } else if (type === 'plan') {
+    } else if (type === 'task' || type === 'plan') {
       handleTogglePlan(id);
     }
   };
@@ -614,10 +582,7 @@ export default function App() {
       focusMinutesByDate: {},
       habits: prev.habits.map(h => ({ ...h, baseStreak: 0 })),
       plans: prev.plans.map(p => ({ ...p, completed: false, progress: 0 })),
-      tasksByDate: {
-        ...prev.tasksByDate,
-        [todayKey]: (prev.tasksByDate[todayKey] || topTasksForActiveDate).map(t => ({ ...t, completed: false })),
-      },
+      tasksByDate: {},
     }));
   };
 
@@ -706,15 +671,17 @@ export default function App() {
                 habits={state.habits}
                 habitLogs={state.habitLogs}
                 onToggleHabit={handleToggleHabit}
-                topTasks={topTasksForActiveDate}
-                onToggleTopTask={handleToggleTopTask}
-                onUpdateTopTaskText={handleUpdateTopTaskText}
+                todayTasks={todayTasksForActiveDate}
+                onToggleTodayTask={handleTogglePlan}
+                onUpdateTodayTaskText={handleUpdatePlanTitle}
+                onDeleteTodayTask={handleDeletePlan}
+                onAddTodayTask={handleAddTodayTask}
                 inboxTasks={state.inboxTasks}
                 onAddInboxTask={handleAddInboxTask}
                 onDeleteInboxTask={handleDeleteInboxTask}
-                onPromoteInboxToTopTask={handlePromoteInboxToTopTask}
+                onPromoteInboxToTodayTask={handlePromoteInboxToTodayTask}
                 onStartTimerForHabit={handleStartTimerForHabit}
-                onStartTimerForTask={handleStartTimerForTask}
+                onStartTimerForTask={handleStartTimerForPlan}
                 onOpenAddHabitModal={(catId) => setHabitModalData({ isOpen: true, habit: null, defaultCategory: catId || 'personality' })}
               />
             </div>
@@ -723,7 +690,7 @@ export default function App() {
             <div className="lg:col-span-5 space-y-5">
               <FocusTimer
                 habits={state.habits}
-                topTasks={topTasksForActiveDate}
+                topTasks={todayTasksForActiveDate}
                 activeDateKey={activeDateKey}
                 onCompleteHabitOrTask={handleCompleteHabitOrTask}
                 onAddFocusMinutes={handleAddFocusMinutes}
@@ -743,7 +710,6 @@ export default function App() {
               onDeletePlan={handleDeletePlan}
               onStartTimerForPlan={handleStartTimerForPlan}
               onQuickAddTask={handleQuickAddTask}
-              onPromotePlanToTopTask={handlePromotePlanToTopTask}
               onOpenAddPlanModal={(catId, horizon, period, type = 'progress') => {
                 setPlanModalData({
                   isOpen: true,

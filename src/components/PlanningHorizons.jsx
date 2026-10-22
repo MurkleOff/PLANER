@@ -10,8 +10,7 @@ import {
   Target, 
   Clock, 
   Compass,
-  CheckSquare,
-  ArrowUpRight
+  CheckSquare
 } from 'lucide-react';
 import { CATEGORIES } from '../constants/initialData';
 import { 
@@ -39,7 +38,6 @@ export default function PlanningHorizons({
   onOpenAddPlanModal,
   onOpenEditPlanModal,
   onQuickAddTask,
-  onPromotePlanToTopTask,
 }) {
   const [activeHorizon, setActiveHorizon] = useState('day'); // 'day' | 'week' | 'month' | 'year'
 
@@ -686,16 +684,6 @@ export default function PlanningHorizons({
 
                             {/* Actions */}
                             <div className="flex items-center gap-0.5 shrink-0">
-                              {activeHorizon === 'day' && onPromotePlanToTopTask && (
-                                <button
-                                  onClick={() => onPromotePlanToTopTask(task.title, activePeriodKey)}
-                                  className="p-1 text-slate-500 hover:text-indigo-400 transition-colors"
-                                  title="Сделать одной из 3 главных задач дня"
-                                >
-                                  <ArrowUpRight className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-
                               <button
                                 onClick={() => onStartTimerForPlan(task)}
                                 className="p-1 text-slate-500 hover:text-cyan-400 transition-colors"
