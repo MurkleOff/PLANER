@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, CheckSquare, Target } from 'lucide-react';
+import { X, Calendar, CheckSquare, Target, Star } from 'lucide-react';
 import { CATEGORIES } from '../../constants/initialData';
 import { generateUniqueId } from '../../utils/planUtils';
 
@@ -11,6 +11,7 @@ export default function PlanModal({
   defaultHorizon = 'day',
   defaultPeriod = '',
   defaultType = 'progress',
+  defaultIsKey = false,
   onSavePlan,
 }) {
   const [title, setTitle] = useState('');
@@ -20,6 +21,7 @@ export default function PlanModal({
   const [type, setType] = useState(defaultType); // 'checkbox' | 'progress'
   const [progress, setProgress] = useState(0);
   const [deadline, setDeadline] = useState('');
+  const [isKeyGoal, setIsKeyGoal] = useState(false);
 
   useEffect(() => {
     if (planToEdit) {
@@ -30,6 +32,7 @@ export default function PlanModal({
       setType(planToEdit.type || 'progress');
       setProgress(planToEdit.progress || 0);
       setDeadline(planToEdit.deadline || '');
+      setIsKeyGoal(!!planToEdit.isKeyGoal);
     } else {
       setTitle('');
       setCategory(defaultCategory);
@@ -38,8 +41,9 @@ export default function PlanModal({
       setType(defaultType || (defaultHorizon === 'year' ? 'progress' : 'progress'));
       setProgress(0);
       setDeadline('');
+      setIsKeyGoal(!!defaultIsKey);
     }
-  }, [planToEdit, isOpen, defaultCategory, defaultHorizon, defaultPeriod, defaultType]);
+  }, [planToEdit, isOpen, defaultCategory, defaultHorizon, defaultPeriod, defaultType, defaultIsKey]);
 
   if (!isOpen) return null;
 
@@ -54,6 +58,7 @@ export default function PlanModal({
       horizon,
       targetPeriod: targetPeriod || defaultPeriod,
       type,
+      isKeyGoal: isGoal ? isKeyGoal : false,
       completed: type === 'progress' ? Number(progress) === 100 : (planToEdit ? planToEdit.completed : false),
       progress: type === 'progress' ? Number(progress) : (planToEdit?.completed ? 100 : 0),
       deadline: deadline || null,
@@ -241,6 +246,46 @@ export default function PlanModal({
                   100% ✓
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* North Star Key Goal Toggle */}
+          {isGoal && (
+            <div className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+              isKeyGoal 
+                ? 'bg-amber-500/15 border-amber-500/40 shadow-sm shadow-amber-500/10' 
+                : 'bg-slate-950/60 border-slate-800'
+            }`}>
+              <div className="flex items-center gap-2.5">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  isKeyGoal ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-800 text-slate-500'
+                }`}>
+                  <Star className={`w-4 h-4 ${isKeyGoal ? 'fill-amber-400 text-amber-400' : ''}`} />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                    <span>Главная цель периода (North Star)</span>
+                    {isKeyGoal && (
+                      <span className="text-[10px] px-1.5 py-0.2 rounded font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        Фокус
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-slate-400">
+                    Будет отображаться как главный ориентир на меньших горизонтах
+                  </div>
+                </div>
+              </div>
+
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={isKeyGoal}
+                  onChange={(e) => setIsKeyGoal(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-10 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+              </label>
             </div>
           )}
 

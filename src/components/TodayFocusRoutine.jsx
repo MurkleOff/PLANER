@@ -8,16 +8,18 @@ import {
   Plus, 
   Trash2, 
   ArrowUpRight, 
-  Edit3,
-  CheckSquare,
-  ArrowRight,
-  Calendar,
-  Clock
+  Edit3, 
+  CheckSquare, 
+  ArrowRight, 
+  Calendar, 
+  Clock,
+  Star
 } from 'lucide-react';
 import { CATEGORIES } from '../constants/initialData';
 import { isHabitDoneOnDate, getHabitWeekCompletedCount, calculateSmartStreak } from '../utils/metrics';
 import { sound } from '../utils/audio';
 import { formatDateKey, addDays, formatDateRu } from '../utils/dateUtils';
+import { getParentKeyGoal } from '../utils/planUtils';
 
 export default function TodayFocusRoutine({
   weekDays,
@@ -27,6 +29,7 @@ export default function TodayFocusRoutine({
   habitLogs,
   onToggleHabit,
   todayTasks = [],
+  allPlans = [],
   onToggleTodayTask,
   onUpdateTodayTaskText,
   onUpdateTodayTaskCategory,
@@ -42,6 +45,9 @@ export default function TodayFocusRoutine({
   onStartTimerForHabit,
   onStartTimerForTask,
   onOpenAddHabitModal,
+  onOpenEditPlanModal,
+  onOpenAddPlanModal,
+  onSelectPlanningTab,
 }) {
   const [isInboxOpen, setIsInboxOpen] = useState(false);
   const [newInboxText, setNewInboxText] = useState('');
@@ -422,6 +428,85 @@ export default function TodayFocusRoutine({
           )}
         </div>
 
+        {/* Active Category Week North Star Beacon */}
+        {activeCategoryFilter !== 'all' && (() => {
+          const parentBeacon = getParentKeyGoal(allPlans, 'day', activeDateKey, activeCategoryFilter);
+          if (!parentBeacon) return null;
+
+          return (
+            <div className="mb-3.5">
+              {parentBeacon.goal ? (
+                <div 
+                  onClick={() => onOpenEditPlanModal && onOpenEditPlanModal(parentBeacon.goal)}
+                  className="p-2.5 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-950/20 to-slate-900 border border-amber-500/35 hover:border-amber-400/60 transition-all cursor-pointer group shadow-sm"
+                  title="Главная цель недели (кликните для редактирования)"
+                >
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="p-1 rounded-md bg-amber-500/20 text-amber-400 shrink-0">
+                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                      </span>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-amber-300 truncate">
+                        Главная цель недели ({CATEGORIES[activeCategoryFilter]?.name || 'Сфера'})
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-[11px] font-mono font-bold text-amber-300">
+                        {parentBeacon.goal.progress || 0}%
+                      </span>
+                      {onSelectPlanningTab && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectPlanningTab();
+                          }}
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 transition-colors flex items-center gap-0.5 font-medium"
+                          title="Перейти к разделу планирования"
+                        >
+                          <span>К планам</span>
+                          <ArrowRight className="w-2.5 h-2.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="text-xs font-semibold text-slate-100 group-hover:text-amber-200 transition-colors truncate">
+                      {parentBeacon.goal.title}
+                    </div>
+                  </div>
+
+                  <div className="w-full bg-slate-950/80 rounded-full h-1 overflow-hidden border border-amber-500/20">
+                    <div
+                      className="bg-gradient-to-r from-amber-400 to-amber-300 h-full rounded-full transition-all duration-300"
+                      style={{ width: `${parentBeacon.goal.progress || 0}%` }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onOpenAddPlanModal && onOpenAddPlanModal(activeCategoryFilter, parentBeacon.parentInfo.parentHorizon, parentBeacon.parentInfo.parentPeriodKey, 'progress', true)}
+                  className="w-full p-2 rounded-xl bg-slate-950/40 hover:bg-amber-500/5 border border-dashed border-slate-800 hover:border-amber-500/40 text-left transition-all group flex items-center justify-between gap-2"
+                  title={`Задать главную цель на неделю в сфере «${CATEGORIES[activeCategoryFilter]?.name}»`}
+                >
+                  <div className="flex items-center gap-1.5 text-xs text-slate-400 group-hover:text-amber-300 transition-colors">
+                    <Star className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400 transition-colors" />
+                    <span className="text-[11px]">
+                      Главная цель недели в сфере «{CATEGORIES[activeCategoryFilter]?.name}» не задана
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-semibold text-amber-400/90 group-hover:text-amber-300 flex items-center gap-0.5">
+                    <span>+ Задать</span>
+                  </span>
+                </button>
+              )}
+            </div>
+          );
+        })()}
+
         {/* Quick Add Form directly in this block */}
         <form onSubmit={handleAddTodayTaskSubmit} className="mb-3.5 space-y-2 p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/70">
           {/* If "Все сферы" is selected, choose which sphere to add to */}
@@ -507,6 +592,47 @@ export default function TodayFocusRoutine({
                       Только {cat.name} →
                     </button>
                   </div>
+
+                  {/* Sphere Group Week North Star Beacon */}
+                  {(() => {
+                    const parentBeacon = getParentKeyGoal(allPlans, 'day', activeDateKey, cat.id);
+                    if (!parentBeacon) return null;
+
+                    return (
+                      <div className="pt-0.5 pb-1">
+                        {parentBeacon.goal ? (
+                          <div 
+                            onClick={() => onOpenEditPlanModal && onOpenEditPlanModal(parentBeacon.goal)}
+                            className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 hover:border-amber-400/50 transition-all cursor-pointer group flex items-center justify-between gap-2"
+                            title="Главная цель недели (кликните для редактирования)"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
+                              <span className="text-[11px] text-amber-200 truncate group-hover:text-amber-100 font-medium">
+                                <span className="text-[10px] uppercase font-bold text-amber-400 mr-1">Ориентир недели:</span>
+                                {parentBeacon.goal.title}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-mono font-bold text-amber-300 shrink-0 bg-amber-500/20 px-1.5 py-0.5 rounded">
+                              {parentBeacon.goal.progress || 0}%
+                            </span>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => onOpenAddPlanModal && onOpenAddPlanModal(cat.id, parentBeacon.parentInfo.parentHorizon, parentBeacon.parentInfo.parentPeriodKey, 'progress', true)}
+                            className="w-full p-1.5 rounded-lg border border-dashed border-slate-800 hover:border-amber-500/40 text-left transition-colors flex items-center justify-between text-[11px] text-slate-400 hover:text-amber-300"
+                          >
+                            <span className="flex items-center gap-1">
+                              <Star className="w-3 h-3 text-slate-500" />
+                              <span>Главная цель недели не задана</span>
+                            </span>
+                            <span className="text-[10px] font-semibold text-amber-400">+ Задать</span>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   <div className="space-y-1.5">
                     {sphereTasks.map(task => renderTaskItem(task))}

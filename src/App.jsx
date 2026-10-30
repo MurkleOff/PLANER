@@ -252,7 +252,8 @@ export default function App() {
     defaultCategory: 'personality', 
     defaultHorizon: 'day', 
     defaultPeriod: '',
-    defaultType: 'progress' 
+    defaultType: 'progress',
+    defaultIsKey: false,
   });
 
   // --- Active Tab State: 'today' | 'horizons' | 'matrix' ---
@@ -396,15 +397,58 @@ export default function App() {
   const handleSavePlan = (planData) => {
     setState(prev => {
       const targetIndex = planData.id ? prev.plans.findIndex(p => p.id === planData.id) : -1;
+      const isKey = !!planData.isKeyGoal;
+      const cat = planData.category;
+      const hor = planData.horizon;
+      const period = planData.targetPeriod;
+
+      // If making this plan the key goal, ensure exclusivity in (category, horizon, targetPeriod)
+      let basePlans = prev.plans;
+      if (isKey) {
+        basePlans = basePlans.map(p => {
+          if (p.id !== planData.id && p.category === cat && p.horizon === hor && p.targetPeriod === period) {
+            return { ...p, isKeyGoal: false };
+          }
+          return p;
+        });
+      }
+
       let updatedPlans;
       if (targetIndex !== -1) {
-        updatedPlans = [...prev.plans];
-        updatedPlans[targetIndex] = { ...updatedPlans[targetIndex], ...planData };
+        updatedPlans = [...basePlans];
+        updatedPlans[targetIndex] = { ...updatedPlans[targetIndex], ...planData, isKeyGoal: isKey };
       } else {
         const id = planData.id || generateUniqueId('plan');
-        updatedPlans = [...prev.plans, { ...planData, id }];
+        updatedPlans = [...basePlans, { ...planData, id, isKeyGoal: isKey }];
       }
       return { ...prev, plans: updatedPlans };
+    });
+  };
+
+  const handleToggleKeyPlan = (planId) => {
+    if (!planId) return;
+    setState(prev => {
+      const target = prev.plans.find(p => p.id === planId);
+      if (!target) return prev;
+      const nextIsKey = !target.isKeyGoal;
+      if (nextIsKey) {
+        sound.playCelebrationChime();
+      } else {
+        sound.playCheckmarkClick();
+      }
+
+      return {
+        ...prev,
+        plans: prev.plans.map(p => {
+          if (p.id === planId) {
+            return { ...p, isKeyGoal: nextIsKey };
+          }
+          if (nextIsKey && p.category === target.category && p.horizon === target.horizon && p.targetPeriod === target.targetPeriod) {
+            return { ...p, isKeyGoal: false };
+          }
+          return p;
+        }),
+      };
     });
   };
 
@@ -789,6 +833,7 @@ export default function App() {
                 habitLogs={state.habitLogs}
                 onToggleHabit={handleToggleHabit}
                 todayTasks={todayTasksForActiveDate}
+                allPlans={state.plans}
                 onToggleTodayTask={handleTogglePlan}
                 onUpdateTodayTaskText={handleUpdatePlanTitle}
                 onUpdateTodayTaskCategory={handleUpdatePlanCategory}
@@ -804,6 +849,29 @@ export default function App() {
                 onStartTimerForHabit={handleStartTimerForHabit}
                 onStartTimerForTask={handleStartTimerForPlan}
                 onOpenAddHabitModal={(catId) => setHabitModalData({ isOpen: true, habit: null, defaultCategory: catId || 'personality' })}
+                onOpenEditPlanModal={(plan) => {
+                  setPlanModalData({
+                    isOpen: true,
+                    plan,
+                    defaultCategory: plan.category,
+                    defaultHorizon: plan.horizon,
+                    defaultPeriod: plan.targetPeriod,
+                    defaultType: plan.type || 'progress',
+                    defaultIsKey: !!plan.isKeyGoal,
+                  });
+                }}
+                onOpenAddPlanModal={(catId, horizon, period, type = 'progress', isKey = false) => {
+                  setPlanModalData({
+                    isOpen: true,
+                    plan: null,
+                    defaultCategory: catId,
+                    defaultHorizon: horizon,
+                    defaultPeriod: period,
+                    defaultType: type,
+                    defaultIsKey: isKey,
+                  });
+                }}
+                onSelectPlanningTab={() => setActiveTab('horizons')}
               />
             </div>
 
@@ -830,9 +898,10 @@ export default function App() {
               onUpdatePlanTitle={handleUpdatePlanTitle}
               onReschedulePlan={handleReschedulePlan}
               onDeletePlan={handleDeletePlan}
+              onToggleKeyPlan={handleToggleKeyPlan}
               onStartTimerForPlan={handleStartTimerForPlan}
               onQuickAddTask={handleQuickAddTask}
-              onOpenAddPlanModal={(catId, horizon, period, type = 'progress') => {
+              onOpenAddPlanModal={(catId, horizon, period, type = 'progress', isKey = false) => {
                 setPlanModalData({
                   isOpen: true,
                   plan: null,
@@ -840,6 +909,7 @@ export default function App() {
                   defaultHorizon: horizon,
                   defaultPeriod: period,
                   defaultType: type,
+                  defaultIsKey: isKey,
                 });
               }}
               onOpenEditPlanModal={(plan) => {
@@ -850,6 +920,7 @@ export default function App() {
                   defaultHorizon: plan.horizon,
                   defaultPeriod: plan.targetPeriod,
                   defaultType: plan.type || 'progress',
+                  defaultIsKey: !!plan.isKeyGoal,
                 });
               }}
             />
@@ -983,6 +1054,7 @@ export default function App() {
         defaultHorizon={planModalData.defaultHorizon}
         defaultPeriod={planModalData.defaultPeriod}
         defaultType={planModalData.defaultType || 'progress'}
+        defaultIsKey={planModalData.defaultIsKey}
         onSavePlan={handleSavePlan}
       />
     </div>

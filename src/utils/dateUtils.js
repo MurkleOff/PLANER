@@ -209,3 +209,35 @@ export function getYesterdayKey(date = new Date()) {
 export function getTomorrowKey(date = new Date()) {
   return addDays(date, 1);
 }
+
+/**
+ * Get the Monday of a given YYYY-MM-DD date key
+ */
+export function getMondayOfDateKey(dateKey) {
+  if (!dateKey) return getMondayOfWeek(new Date(), 0);
+  const parts = String(dateKey).split('-');
+  if (parts.length >= 3) {
+    const y = Number(parts[0]);
+    const m = Number(parts[1]);
+    const d = Number(parts[2]);
+    const dateObj = new Date(y, m - 1, d, 12, 0, 0);
+    return getMondayOfWeek(dateObj, 0);
+  }
+  return getMondayOfWeek(new Date(), 0);
+}
+
+/**
+ * Get the Monday of an ISO week key YYYY-Www
+ */
+export function getMondayOfWeekKey(weekKey) {
+  if (!weekKey || typeof weekKey !== 'string') return getMondayOfWeek(new Date(), 0);
+  const match = weekKey.match(/^(\d{4})-W(\d{1,2})$/);
+  if (!match) return getMondayOfWeek(new Date(), 0);
+  const year = parseInt(match[1], 10);
+  const week = parseInt(match[2], 10);
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const dayNum = jan4.getUTCDay() || 7;
+  const mondayWeek1 = new Date(jan4.getTime() - (dayNum - 1) * 86400000);
+  const targetMonday = new Date(mondayWeek1.getTime() + (week - 1) * 7 * 86400000);
+  return new Date(targetMonday.getUTCFullYear(), targetMonday.getUTCMonth(), targetMonday.getUTCDate(), 12, 0, 0);
+}

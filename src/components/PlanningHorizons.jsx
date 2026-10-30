@@ -11,7 +11,9 @@ import {
   Clock, 
   Compass, 
   CheckSquare,
-  ArrowRight
+  ArrowRight,
+  Star,
+  Edit3
 } from 'lucide-react';
 import { CATEGORIES } from '../constants/initialData';
 import { 
@@ -22,12 +24,14 @@ import {
   getMondayOfWeek, 
   getWeekDays, 
   getWeekLabel, 
-  getWeekKey,
-  getMonthKey,
-  getYearKey,
-  addDays,
-  DAYS_FULL
+  getWeekKey, 
+  getMonthKey, 
+  getYearKey, 
+  addDays, 
+  DAYS_FULL,
+  getMondayOfDateKey 
 } from '../utils/dateUtils';
+import { getParentKeyGoal } from '../utils/planUtils';
 import { sound } from '../utils/audio';
 
 export default function PlanningHorizons({
@@ -37,6 +41,7 @@ export default function PlanningHorizons({
   onUpdatePlanTitle,
   onReschedulePlan,
   onDeletePlan,
+  onToggleKeyPlan,
   onStartTimerForPlan,
   onOpenAddPlanModal,
   onOpenEditPlanModal,
@@ -111,6 +116,25 @@ export default function PlanningHorizons({
 
   const handleYearShift = (deltaYears) => {
     setYearNumber(prev => prev + deltaYears);
+  };
+
+  const handleJumpToParentHorizon = (parentHorizon, parentPeriodKey) => {
+    if (!parentHorizon || !parentPeriodKey) return;
+    setActiveHorizon(parentHorizon);
+    if (parentHorizon === 'year') {
+      setYearNumber(Number(parentPeriodKey));
+    } else if (parentHorizon === 'month') {
+      const parts = String(parentPeriodKey).split('-').map(Number);
+      if (parts.length >= 2) {
+        setMonthDate(new Date(parts[0], parts[1] - 1, 1));
+      }
+    } else if (parentHorizon === 'week') {
+      const todayMonday = getMondayOfWeek(new Date(), 0);
+      const targetMonday = getMondayOfDateKey(dayDate);
+      const diffMs = targetMonday.getTime() - todayMonday.getTime();
+      const diffWeeks = Math.round(diffMs / (7 * 86400000));
+      setWeekOffset(diffWeeks);
+    }
   };
 
   const handleSaveInlineEdit = (planId) => {
@@ -438,6 +462,9 @@ export default function PlanningHorizons({
 
                 const sphereGoals = spherePlans.filter(p => p.type === 'progress');
                 const sphereTasks = spherePlans.filter(p => p.type === 'checkbox' || !p.type);
+                const parentBeacon = getParentKeyGoal(plans, activeHorizon, activePeriodKey, cat.id, { 
+                  monday: activeHorizon === 'week' ? mondayOfWeek : undefined 
+                });
 
                 return (
                   <div key={cat.id} className="p-3 rounded-xl bg-slate-900/50 border border-slate-800 space-y-3">
@@ -458,6 +485,42 @@ export default function PlanningHorizons({
                         + Добавить в «{cat.name}»
                       </button>
                     </div>
+
+                    {/* Parent North Star Beacon */}
+                    {parentBeacon && (
+                      <div>
+                        {parentBeacon.goal ? (
+                          <div 
+                            onClick={() => onOpenEditPlanModal && onOpenEditPlanModal(parentBeacon.goal)}
+                            className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 hover:border-amber-400/50 transition-all cursor-pointer group flex items-center justify-between gap-2"
+                            title={`Главная цель (${parentBeacon.parentInfo.parentLabel}) — кликните для редактирования`}
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
+                              <span className="text-[11px] text-amber-200 truncate group-hover:text-amber-100 font-medium">
+                                <span className="text-[10px] uppercase font-bold text-amber-400 mr-1">Ориентир недели:</span>
+                                {parentBeacon.goal.title}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-mono font-bold text-amber-300 shrink-0 bg-amber-500/20 px-1.5 py-0.5 rounded">
+                              {parentBeacon.goal.progress || 0}%
+                            </span>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => onOpenAddPlanModal(cat.id, parentBeacon.parentInfo.parentHorizon, parentBeacon.parentInfo.parentPeriodKey, 'progress', true)}
+                            className="w-full p-1.5 rounded-lg border border-dashed border-slate-800 hover:border-amber-500/40 text-left transition-colors flex items-center justify-between text-[11px] text-slate-400 hover:text-amber-300"
+                          >
+                            <span className="flex items-center gap-1">
+                              <Star className="w-3 h-3 text-slate-500" />
+                              <span>Главная цель недели не задана</span>
+                            </span>
+                            <span className="text-[10px] font-semibold text-amber-400">+ Задать</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
 
                     {/* Goals */}
                     {sphereGoals.length > 0 && (
@@ -558,6 +621,9 @@ export default function PlanningHorizons({
           const spherePlans = currentPeriodPlans.filter(p => p.category === cat.id);
           const sphereGoals = spherePlans.filter(p => p.type === 'progress');
           const sphereTasks = spherePlans.filter(p => p.type === 'checkbox' || !p.type);
+          const parentBeacon = getParentKeyGoal(plans, activeHorizon, activePeriodKey, cat.id, { 
+            monday: activeHorizon === 'week' ? mondayOfWeek : undefined 
+          });
 
           const closedGoalsCount = sphereGoals.filter(g => g.progress === 100).length;
           const closedTasksCount = sphereTasks.filter(t => t.completed).length;
@@ -599,6 +665,79 @@ export default function PlanningHorizons({
                   </div>
                 </div>
 
+                {/* --- NORTH STAR BEACON FROM PARENT HORIZON --- */}
+                {parentBeacon && (
+                  <div className="mb-3.5">
+                    {parentBeacon.goal ? (
+                      <div 
+                        onClick={() => onOpenEditPlanModal && onOpenEditPlanModal(parentBeacon.goal)}
+                        className="p-2.5 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-950/20 to-slate-900 border border-amber-500/35 hover:border-amber-400/60 transition-all cursor-pointer group shadow-sm"
+                        title={`Главная цель (${parentBeacon.parentInfo.parentLabel}) — кликните для редактирования`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="p-1 rounded-md bg-amber-500/20 text-amber-400 shrink-0">
+                              <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                            </span>
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-amber-300 truncate">
+                              Главная цель на {parentBeacon.parentInfo.parentLabel}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[11px] font-mono font-bold text-amber-300">
+                              {parentBeacon.goal.progress || 0}%
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleJumpToParentHorizon(parentBeacon.parentInfo.parentHorizon, parentBeacon.parentInfo.parentPeriodKey);
+                              }}
+                              className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 transition-colors flex items-center gap-0.5 font-medium"
+                              title={`Перейти к горизонту «${parentBeacon.parentInfo.parentHorizonName}»`}
+                            >
+                              <span>К горизонту</span>
+                              <ArrowRight className="w-2.5 h-2.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <div className="text-xs font-semibold text-slate-100 group-hover:text-amber-200 transition-colors truncate">
+                            {parentBeacon.goal.title}
+                          </div>
+                        </div>
+
+                        {/* Mini progress bar */}
+                        <div className="w-full bg-slate-950/80 rounded-full h-1 overflow-hidden border border-amber-500/20">
+                          <div
+                            className="bg-gradient-to-r from-amber-400 to-amber-300 h-full rounded-full transition-all duration-300"
+                            style={{ width: `${parentBeacon.goal.progress || 0}%` }}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onOpenAddPlanModal(cat.id, parentBeacon.parentInfo.parentHorizon, parentBeacon.parentInfo.parentPeriodKey, 'progress', true)}
+                        className="w-full p-2 rounded-xl bg-slate-950/40 hover:bg-amber-500/5 border border-dashed border-slate-800 hover:border-amber-500/40 text-left transition-all group flex items-center justify-between gap-2"
+                        title={`Задать главную цель на ${parentBeacon.parentInfo.parentLabel}`}
+                      >
+                        <div className="flex items-center gap-1.5 text-xs text-slate-400 group-hover:text-amber-300 transition-colors">
+                          <Star className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400 transition-colors" />
+                          <span className="text-[11px]">
+                            Главная цель на {parentBeacon.parentInfo.parentLabel} не задана
+                          </span>
+                        </div>
+                        <span className="text-[11px] font-semibold text-amber-400/90 group-hover:text-amber-300 flex items-center gap-0.5">
+                          <span>+ Задать</span>
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* --- SECTION A: GOALS OF THE PERIOD --- */}
                 <div className="mb-4">
                   <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-800/50">
@@ -628,20 +767,43 @@ export default function PlanningHorizons({
                       {sphereGoals.map(goal => {
                         const isEditing = editingPlanId === goal.id;
                         const isCompleted = goal.progress === 100;
+                        const isKey = !!goal.isKeyGoal;
                         const daysLeft = goal.deadline ? getDaysRemaining(goal.deadline) : null;
 
                         return (
                           <div
                             key={goal.id}
                             className={`p-3 rounded-xl border transition-all ${
-                              isCompleted
-                                ? 'bg-slate-900/60 border-emerald-500/40 shadow-sm shadow-emerald-500/5'
-                                : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
+                              isKey
+                                ? 'bg-amber-950/20 border-amber-500/40 shadow-sm shadow-amber-500/10 ring-1 ring-amber-500/30'
+                                : isCompleted
+                                  ? 'bg-slate-900/60 border-emerald-500/40 shadow-sm shadow-emerald-500/5'
+                                  : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
                             }`}
                           >
                             <div className="flex items-start justify-between gap-2 mb-1.5">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                                  {/* Star Key Goal Toggle */}
+                                  <button
+                                    type="button"
+                                    onClick={() => onToggleKeyPlan && onToggleKeyPlan(goal.id)}
+                                    className={`p-1 rounded-md transition-colors ${
+                                      isKey
+                                        ? 'text-amber-400 hover:text-amber-300 bg-amber-400/10'
+                                        : 'text-slate-600 hover:text-amber-400 hover:bg-slate-800'
+                                    }`}
+                                    title={isKey ? 'Главная цель периода (кликните, чтобы снять)' : 'Сделать главной целью периода (North Star)'}
+                                  >
+                                    <Star className={`w-3.5 h-3.5 ${isKey ? 'fill-amber-400' : ''}`} />
+                                  </button>
+
+                                  {isKey && (
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-0.5">
+                                      ★ Главная
+                                    </span>
+                                  )}
+
                                   {isCompleted ? (
                                     <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-0.5">
                                       <Check className="w-2.5 h-2.5 stroke-[3]" /> Достигнута
@@ -693,7 +855,11 @@ export default function PlanningHorizons({
                                       setEditTitleValue(goal.title);
                                     }}
                                     className={`text-xs font-semibold cursor-pointer truncate ${
-                                      isCompleted ? 'text-emerald-300' : 'text-slate-100 hover:text-cyan-300'
+                                      isKey 
+                                        ? 'text-amber-200 hover:text-amber-100 font-bold'
+                                        : isCompleted 
+                                          ? 'text-emerald-300' 
+                                          : 'text-slate-100 hover:text-cyan-300'
                                     }`}
                                     title="Кликните для редактирования названия цели"
                                   >
@@ -704,6 +870,13 @@ export default function PlanningHorizons({
 
                               {/* Action icons */}
                               <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  onClick={() => onOpenEditPlanModal && onOpenEditPlanModal(goal)}
+                                  className="p-1 text-slate-500 hover:text-indigo-400 transition-colors"
+                                  title="Редактировать цель и дедлайн"
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                </button>
                                 <button
                                   onClick={() => onStartTimerForPlan(goal)}
                                   className="p-1 text-slate-500 hover:text-cyan-400 transition-colors"

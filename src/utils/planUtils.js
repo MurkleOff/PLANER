@@ -2,6 +2,15 @@
  * Plan & Task management utilities: ID generation, self-healing deduplication, and sanitization
  */
 
+import {
+  getMonthKey,
+  getWeekKey,
+  getWeekLabel,
+  formatMonthLabel,
+  getMondayOfDateKey,
+  getMondayOfWeekKey
+} from './dateUtils.js';
+
 let idCounter = 0;
 
 /**
@@ -25,6 +34,7 @@ export function sanitizePlans(plans) {
   if (!Array.isArray(plans)) return { sanitized: [], hasChanges: true };
 
   const seenIds = new Set();
+  const seenKeyGoals = new Set();
   let hasChanges = false;
 
   const sanitized = [];
@@ -49,14 +59,32 @@ export function sanitizePlans(plans) {
       hasChanges = true;
     }
 
+    const category = p.category || 'work';
+    const horizon = p.horizon || 'day';
+    const targetPeriod = p.targetPeriod || p.period || '';
+    const type = p.type || 'checkbox';
+
+    let isKeyGoal = !!p.isKeyGoal && (type === 'progress' || !p.type);
+    if (isKeyGoal) {
+      const groupKey = `${category}_${horizon}_${targetPeriod}`;
+      if (seenKeyGoals.has(groupKey)) {
+        // Enforce max 1 key goal per sphere per period
+        isKeyGoal = false;
+        hasChanges = true;
+      } else {
+        seenKeyGoals.add(groupKey);
+      }
+    }
+
     const cleanPlan = {
       ...p,
       id,
       title,
-      category: p.category || 'work',
-      horizon: p.horizon || 'day',
-      targetPeriod: p.targetPeriod || p.period || '',
-      type: p.type || 'checkbox',
+      category,
+      horizon,
+      targetPeriod,
+      type,
+      isKeyGoal,
       completed: !!p.completed,
       progress: typeof p.progress === 'number'
         ? Math.max(0, Math.min(100, p.progress))
@@ -64,7 +92,7 @@ export function sanitizePlans(plans) {
       deadline: p.deadline || null,
     };
 
-    if (cleanPlan.id !== p.id) {
+    if (cleanPlan.id !== p.id || cleanPlan.isKeyGoal !== p.isKeyGoal) {
       hasChanges = true;
     }
 
@@ -72,6 +100,77 @@ export function sanitizePlans(plans) {
   }
 
   return { sanitized, hasChanges };
+}
+
+/**
+ * Get information about the parent planning period in the cascade:
+ * Day -> Week
+ * Week -> Month
+ * Month -> Year
+ * Year -> null
+ */
+export function getParentPeriodInfo(currentHorizon, currentPeriodKey, options = {}) {
+  if (!currentHorizon || !currentPeriodKey) return null;
+
+  if (currentHorizon === 'month') {
+    // Current is Month (YYYY-MM), Parent is Year (YYYY)
+    const yearKey = String(currentPeriodKey).split('-')[0];
+    return {
+      parentHorizon: 'year',
+      parentPeriodKey: yearKey,
+      parentLabel: `${yearKey} года`,
+      parentHorizonName: 'год',
+    };
+  }
+
+  if (currentHorizon === 'week') {
+    // Current is Week (YYYY-Www), Parent is Month (YYYY-MM)
+    const monday = options.monday || getMondayOfWeekKey(currentPeriodKey);
+    const monthKey = getMonthKey(monday);
+    return {
+      parentHorizon: 'month',
+      parentPeriodKey: monthKey,
+      parentLabel: formatMonthLabel(monday),
+      parentHorizonName: 'месяц',
+      monday,
+    };
+  }
+
+  if (currentHorizon === 'day') {
+    // Current is Day (YYYY-MM-DD), Parent is Week (YYYY-Www)
+    const monday = options.monday || getMondayOfDateKey(currentPeriodKey);
+    const weekKey = getWeekKey(monday);
+    return {
+      parentHorizon: 'week',
+      parentPeriodKey: weekKey,
+      parentLabel: getWeekLabel(monday),
+      parentHorizonName: 'неделю',
+      monday,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Find the designated North Star (main) goal in the parent period for a specific sphere.
+ */
+export function getParentKeyGoal(plans, currentHorizon, currentPeriodKey, categoryId, options = {}) {
+  const parentInfo = getParentPeriodInfo(currentHorizon, currentPeriodKey, options);
+  if (!parentInfo || !Array.isArray(plans)) return null;
+
+  const goal = plans.find(p => 
+    p.horizon === parentInfo.parentHorizon &&
+    p.targetPeriod === parentInfo.parentPeriodKey &&
+    p.category === categoryId &&
+    p.isKeyGoal &&
+    (p.type === 'progress' || !p.type)
+  );
+
+  return {
+    parentInfo,
+    goal: goal || null,
+  };
 }
 
 /**
