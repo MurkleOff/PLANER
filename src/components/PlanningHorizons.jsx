@@ -6,7 +6,6 @@ import {
   Plus, 
   Check, 
   Trash2, 
-  Play, 
   Target, 
   Clock, 
   Compass, 
@@ -42,7 +41,6 @@ export default function PlanningHorizons({
   onReschedulePlan,
   onDeletePlan,
   onToggleKeyPlan,
-  onStartTimerForPlan,
   onOpenAddPlanModal,
   onOpenEditPlanModal,
   onQuickAddTask,
@@ -392,13 +390,6 @@ export default function PlanningHorizons({
               <Edit3 className="w-3 h-3" />
             </button>
             <button
-              onClick={() => onStartTimerForPlan(goal)}
-              className="p-1 text-slate-500 hover:text-cyan-400 transition-colors"
-              title="Запустить Deep Work таймер на эту цель"
-            >
-              <Play className="w-3 h-3 fill-current" />
-            </button>
-            <button
               onClick={() => onDeletePlan(goal.id)}
               className="p-1 text-slate-600 hover:text-rose-400 transition-colors"
               title="Удалить цель"
@@ -561,14 +552,6 @@ export default function PlanningHorizons({
               </label>
             </div>
           )}
-
-          <button
-            onClick={() => onStartTimerForPlan(task)}
-            className="p-1 text-slate-500 hover:text-cyan-400 transition-colors"
-            title="Запустить Deep Work таймер на эту задачу"
-          >
-            <Play className="w-3 h-3 fill-current" />
-          </button>
 
           <button
             onClick={() => onDeletePlan(task.id)}

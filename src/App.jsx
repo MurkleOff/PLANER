@@ -3,7 +3,6 @@ import confetti from 'canvas-confetti';
 
 import Header from './components/Header';
 import CompactMetricsBar from './components/CompactMetricsBar';
-import FocusTimer from './components/FocusTimer';
 import TodayFocusRoutine from './components/TodayFocusRoutine';
 import PlanningHorizons from './components/PlanningHorizons';
 import WeekChart from './components/WeekChart';
@@ -214,8 +213,6 @@ export default function App() {
       return acc + s;
     }, 0);
   }, [state.habits, weekDays, selectedDayIndex, state.habitLogs]);
-
-  const todayFocusMinutes = state.focusMinutesByDate[activeDateKey] || 0;
 
   // --- 6. Celebratory Confetti on 100% Daily Charge ---
   const prevChargeRef = useRef(dailyChargeMetrics.dailyCharge);
@@ -607,44 +604,6 @@ export default function App() {
     }));
   };
 
-  // Timer complete hook
-  const handleCompleteHabitOrTask = ({ type, id, dateKey }) => {
-    if (type === 'habit') {
-      const key = `${id}_${dateKey}`;
-      setState(prev => ({
-        ...prev,
-        habitLogs: {
-          ...prev.habitLogs,
-          [key]: true,
-        },
-      }));
-    } else if (type === 'task' || type === 'plan') {
-      handleTogglePlan(id);
-    }
-  };
-
-  const handleAddFocusMinutes = (mins) => {
-    setState(prev => ({
-      ...prev,
-      focusMinutesByDate: {
-        ...prev.focusMinutesByDate,
-        [activeDateKey]: (prev.focusMinutesByDate[activeDateKey] || 0) + mins,
-      },
-    }));
-  };
-
-  const handleStartTimerForHabit = (habit) => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleStartTimerForTask = (task) => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleStartTimerForPlan = (plan) => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   // New Week Reset & Archive
   const handleStartNewWeek = () => {
     if (!window.confirm('Зафиксировать текущую неделю в архив и обнулить отметки для старта новой недели?')) {
@@ -770,7 +729,6 @@ export default function App() {
           dailyChargeMetrics={dailyChargeMetrics}
           disciplineMetrics={disciplineMetrics}
           totalStreakCount={totalStreakCount}
-          todayFocusMinutes={todayFocusMinutes}
         />
 
         {/* 3. Desktop Navigation Tabs */}
@@ -814,7 +772,7 @@ export default function App() {
           </div>
 
           <div className="text-xs text-slate-400 font-mono">
-            {activeTab === 'today' && <span>Ежедневные задачи, привычки и Deep Work</span>}
+            {activeTab === 'today' && <span>Ежедневные задачи, привычки и рутины</span>}
             {activeTab === 'horizons' && <span>Цели и задачи по 4 сферам жизни</span>}
             {activeTab === 'matrix' && <span>Сводная матрица привычек и динамика недели</span>}
           </div>
@@ -822,69 +780,53 @@ export default function App() {
 
         {/* --- SCREEN 1: TODAY / FOCUS --- */}
         {activeTab === 'today' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-in fade-in duration-200">
-            {/* Left Column: Today's Focus & Routine (7 cols) */}
-            <div className="lg:col-span-7">
-              <TodayFocusRoutine
-                weekDays={weekDays}
-                selectedDayIndex={selectedDayIndex}
-                setSelectedDayIndex={setSelectedDayIndex}
-                habits={state.habits}
-                habitLogs={state.habitLogs}
-                onToggleHabit={handleToggleHabit}
-                todayTasks={todayTasksForActiveDate}
-                allPlans={state.plans}
-                onToggleTodayTask={handleTogglePlan}
-                onUpdateTodayTaskText={handleUpdatePlanTitle}
-                onUpdateTodayTaskCategory={handleUpdatePlanCategory}
-                onRescheduleTask={handleReschedulePlan}
-                yesterdayOverdueCount={yesterdayOverdueTasks.length}
-                onRescheduleYesterdayOverdue={() => handleRescheduleOverduePlans(yesterdayKey, activeDateKey)}
-                onDeleteTodayTask={handleDeletePlan}
-                onAddTodayTask={handleAddTodayTask}
-                inboxTasks={state.inboxTasks}
-                onAddInboxTask={handleAddInboxTask}
-                onDeleteInboxTask={handleDeleteInboxTask}
-                onPromoteInboxToTodayTask={handlePromoteInboxToTodayTask}
-                onStartTimerForHabit={handleStartTimerForHabit}
-                onStartTimerForTask={handleStartTimerForPlan}
-                onOpenAddHabitModal={(catId) => setHabitModalData({ isOpen: true, habit: null, defaultCategory: catId || 'personality' })}
-                onOpenEditPlanModal={(plan) => {
-                  setPlanModalData({
-                    isOpen: true,
-                    plan,
-                    defaultCategory: plan.category,
-                    defaultHorizon: plan.horizon,
-                    defaultPeriod: plan.targetPeriod,
-                    defaultType: plan.type || 'progress',
-                    defaultIsKey: !!plan.isKeyGoal,
-                  });
-                }}
-                onOpenAddPlanModal={(catId, horizon, period, type = 'progress', isKey = false) => {
-                  setPlanModalData({
-                    isOpen: true,
-                    plan: null,
-                    defaultCategory: catId,
-                    defaultHorizon: horizon,
-                    defaultPeriod: period,
-                    defaultType: type,
-                    defaultIsKey: isKey,
-                  });
-                }}
-                onSelectPlanningTab={() => setActiveTab('horizons')}
-              />
-            </div>
-
-            {/* Right Column: Deep Work Timer (5 cols) */}
-            <div className="lg:col-span-5 space-y-5">
-              <FocusTimer
-                habits={state.habits}
-                topTasks={todayTasksForActiveDate}
-                activeDateKey={activeDateKey}
-                onCompleteHabitOrTask={handleCompleteHabitOrTask}
-                onAddFocusMinutes={handleAddFocusMinutes}
-              />
-            </div>
+          <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-200">
+            <TodayFocusRoutine
+              weekDays={weekDays}
+              selectedDayIndex={selectedDayIndex}
+              setSelectedDayIndex={setSelectedDayIndex}
+              habits={state.habits}
+              habitLogs={state.habitLogs}
+              onToggleHabit={handleToggleHabit}
+              todayTasks={todayTasksForActiveDate}
+              allPlans={state.plans}
+              onToggleTodayTask={handleTogglePlan}
+              onUpdateTodayTaskText={handleUpdatePlanTitle}
+              onUpdateTodayTaskCategory={handleUpdatePlanCategory}
+              onRescheduleTask={handleReschedulePlan}
+              yesterdayOverdueCount={yesterdayOverdueTasks.length}
+              onRescheduleYesterdayOverdue={() => handleRescheduleOverduePlans(yesterdayKey, activeDateKey)}
+              onDeleteTodayTask={handleDeletePlan}
+              onAddTodayTask={handleAddTodayTask}
+              inboxTasks={state.inboxTasks}
+              onAddInboxTask={handleAddInboxTask}
+              onDeleteInboxTask={handleDeleteInboxTask}
+              onPromoteInboxToTodayTask={handlePromoteInboxToTodayTask}
+              onOpenAddHabitModal={(catId) => setHabitModalData({ isOpen: true, habit: null, defaultCategory: catId || 'personality' })}
+              onOpenEditPlanModal={(plan) => {
+                setPlanModalData({
+                  isOpen: true,
+                  plan,
+                  defaultCategory: plan.category,
+                  defaultHorizon: plan.horizon,
+                  defaultPeriod: plan.targetPeriod,
+                  defaultType: plan.type || 'progress',
+                  defaultIsKey: !!plan.isKeyGoal,
+                });
+              }}
+              onOpenAddPlanModal={(catId, horizon, period, type = 'progress', isKey = false) => {
+                setPlanModalData({
+                  isOpen: true,
+                  plan: null,
+                  defaultCategory: catId,
+                  defaultHorizon: horizon,
+                  defaultPeriod: period,
+                  defaultType: type,
+                  defaultIsKey: isKey,
+                });
+              }}
+              onSelectPlanningTab={() => setActiveTab('horizons')}
+            />
           </div>
         )}
 
@@ -899,7 +841,6 @@ export default function App() {
               onReschedulePlan={handleReschedulePlan}
               onDeletePlan={handleDeletePlan}
               onToggleKeyPlan={handleToggleKeyPlan}
-              onStartTimerForPlan={handleStartTimerForPlan}
               onQuickAddTask={handleQuickAddTask}
               onOpenAddPlanModal={(catId, horizon, period, type = 'progress', isKey = false) => {
                 setPlanModalData({

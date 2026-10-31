@@ -15,7 +15,6 @@ export default function HabitModal({
   const [category, setCategory] = useState(defaultCategory);
   const [targetPerWeek, setTargetPerWeek] = useState(4);
   const [scheduledDays, setScheduledDays] = useState([0, 2, 4]); // 0=Пн..6=Вс
-  const [timerMinutes, setTimerMinutes] = useState(45);
   const [baseStreak, setBaseStreak] = useState(0);
 
   useEffect(() => {
@@ -31,14 +30,12 @@ export default function HabitModal({
             ? [0, 1, 2, 3, 4, 5, 6] 
             : [0, 2, 4].slice(0, quota)
       );
-      setTimerMinutes(habitToEdit.timerMinutes || 45);
       setBaseStreak(habitToEdit.baseStreak || 0);
     } else {
       setTitle('');
       setCategory(defaultCategory);
       setTargetPerWeek(3);
       setScheduledDays([0, 2, 4]); // default Mon-Wed-Fri
-      setTimerMinutes(45);
       setBaseStreak(0);
     }
   }, [habitToEdit, isOpen, defaultCategory]);
@@ -73,7 +70,6 @@ export default function HabitModal({
       category,
       targetPerWeek: Number(targetPerWeek),
       scheduledDays: scheduledDays.length > 0 ? scheduledDays : [0, 1, 2, 3, 4, 5, 6].slice(0, targetPerWeek),
-      timerMinutes: Number(timerMinutes),
       baseStreak: Number(baseStreak),
     });
     onClose();
@@ -237,35 +233,18 @@ export default function HabitModal({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Таймер фокуса (мин)
+              <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center gap-1">
+                <Flame className="w-3.5 h-3.5 text-amber-400" />
+                <span>Базовая серия (дней)</span>
               </label>
               <input
                 type="number"
-                min="5"
-                max="180"
-                value={timerMinutes}
-                onChange={(e) => setTimerMinutes(Number(e.target.value))}
+                min="0"
+                value={baseStreak}
+                onChange={(e) => setBaseStreak(Number(e.target.value))}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
               />
             </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center gap-1">
-              <Flame className="w-3.5 h-3.5 text-amber-400" />
-              <span>Базовая накопленная серия (дней)</span>
-            </label>
-            <input
-              type="number"
-              min="0"
-              value={baseStreak}
-              onChange={(e) => setBaseStreak(Number(e.target.value))}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
-            />
-            <p className="text-[10px] text-slate-500 mt-1">
-              Учитывается при умном расчёте серий.
-            </p>
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-2">

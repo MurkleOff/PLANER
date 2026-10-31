@@ -1,11 +1,10 @@
 import React from 'react';
-import { Zap, Target, Flame, Clock, Award } from 'lucide-react';
+import { Zap, Target, Flame, Award } from 'lucide-react';
 
 export default function CompactMetricsBar({
   dailyChargeMetrics,
   disciplineMetrics,
   totalStreakCount,
-  todayFocusMinutes,
 }) {
   const { dailyCharge, completedTasks, doneCount, requiredHabits, isMaximized } = dailyChargeMetrics;
   const { overallIndex, basePercent, cyclicPercent } = disciplineMetrics;
@@ -16,7 +15,7 @@ export default function CompactMetricsBar({
         ? 'border-emerald-500/50 shadow-emerald-500/10 ring-1 ring-emerald-500/20' 
         : 'border-slate-800/90'
     }`}>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 items-center">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 items-center">
         
         {/* 1. Заряд дня */}
         <div className="flex items-center gap-2.5 min-w-0">
@@ -86,26 +85,6 @@ export default function CompactMetricsBar({
             </div>
             <div className="text-[10px] text-slate-400 truncate">
               умный учёт отдыха
-            </div>
-          </div>
-        </div>
-
-        {/* 4. Глубокий фокус */}
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-cyan-500/15 text-cyan-400 flex items-center justify-center shrink-0">
-            <Clock className="w-4 h-4" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between gap-1 leading-none mb-0.5">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 truncate">
-                Глубокий фокус
-              </span>
-              <span className="text-xs font-mono font-bold text-cyan-300">
-                {todayFocusMinutes} мин
-              </span>
-            </div>
-            <div className="text-[10px] text-slate-400 truncate">
-              сегодня в фокусе
             </div>
           </div>
         </div>

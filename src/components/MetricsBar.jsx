@@ -1,17 +1,16 @@
 import React from 'react';
-import { Zap, Target, Flame, Clock, Award, Info } from 'lucide-react';
+import { Zap, Target, Flame, Award, Info } from 'lucide-react';
 
 export default function MetricsBar({
   dailyChargeMetrics,
   disciplineMetrics,
   totalStreakCount,
-  todayFocusMinutes,
 }) {
   const { dailyCharge, habitPercent, taskPercent, completedTasks, doneCount, requiredHabits, isMaximized } = dailyChargeMetrics;
   const { overallIndex, basePercent, cyclicPercent } = disciplineMetrics;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 mb-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 mb-6">
       
       {/* 1. Заряд дня (0–100%) */}
       <div className={`p-4 rounded-2xl bg-slate-900/80 border transition-all duration-300 relative overflow-hidden ${
@@ -152,43 +151,6 @@ export default function MetricsBar({
         <div className="mt-3 p-2 rounded-xl bg-slate-950/60 border border-slate-800/60 text-[11px] text-slate-400 flex items-center gap-1.5">
           <Info className="w-3.5 h-3.5 text-amber-400/80 shrink-0" />
           <span>Для квот N/7 дни отдыха не обнуляют накопленную серию.</span>
-        </div>
-      </div>
-
-      {/* 4. Глубокий фокус сегодня */}
-      <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800/90 hover:border-slate-700/80 transition-all">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center">
-              <Clock className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Глубокий фокус
-              </span>
-              <div className="text-[10px] text-slate-500">За сегодня</div>
-            </div>
-          </div>
-          
-          <div className="text-right">
-            <span className="text-2xl font-extrabold font-mono tracking-tight text-cyan-400">
-              {todayFocusMinutes}
-            </span>
-            <span className="text-xs text-slate-400 ml-1">мин</span>
-          </div>
-        </div>
-
-        <div className="mt-3 flex items-center justify-between text-xs pt-1">
-          <span className="text-slate-400">Сессий таймера:</span>
-          <span className="font-mono text-slate-200 font-semibold">
-            {Math.round(todayFocusMinutes / 25)} спринт(ов)
-          </span>
-        </div>
-        <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mt-1.5">
-          <div
-            className="h-full bg-cyan-400 rounded-full transition-all duration-500"
-            style={{ width: `${Math.min(100, (todayFocusMinutes / 120) * 100)}%` }}
-          />
         </div>
       </div>
 

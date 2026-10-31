@@ -171,9 +171,6 @@ export default function WeeklyMatrix({
                         <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium border ${category.badgeClass}`}>
                           {category.name}
                         </span>
-                        <span className="text-[10px] text-slate-500 font-mono">
-                          {habit.timerMinutes || 45}м
-                        </span>
                       </div>
                       <div className="font-medium text-slate-200">
                         {habit.title}
