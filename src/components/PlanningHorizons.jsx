@@ -12,7 +12,8 @@ import {
   CheckSquare,
   ArrowRight,
   Star,
-  Edit3
+  Edit3,
+  X
 } from 'lucide-react';
 import { CATEGORIES } from '../constants/initialData';
 import { 
@@ -35,6 +36,8 @@ import { sound } from '../utils/audio';
 
 export default function PlanningHorizons({
   plans = [],
+  categoryMottos = {},
+  onUpdateCategoryMotto,
   onTogglePlan,
   onUpdatePlanProgress,
   onUpdatePlanTitle,
@@ -48,6 +51,28 @@ export default function PlanningHorizons({
   const [activeHorizon, setActiveHorizon] = useState('day'); // 'day' | 'week' | 'month' | 'year'
   const [dayViewMode, setDayViewMode] = useState('spheres'); // 'spheres' | 'all'
   const [activeSphereFilter, setActiveSphereFilter] = useState('all'); // 'all' | 'training' | 'work' | 'study' | 'personality'
+
+  // Custom Category Motto Editing State
+  const [editingMottoCategory, setEditingMottoCategory] = useState(null); // 'training' | 'work' | 'study' | 'personality' | null
+  const [mottoInputValue, setMottoInputValue] = useState('');
+
+  const startEditingMotto = (catId, currentMotto) => {
+    setEditingMottoCategory(catId);
+    setMottoInputValue(currentMotto || '');
+  };
+
+  const cancelEditingMotto = () => {
+    setEditingMottoCategory(null);
+    setMottoInputValue('');
+  };
+
+  const saveEditingMotto = (catId) => {
+    if (onUpdateCategoryMotto) {
+      onUpdateCategoryMotto(catId, mottoInputValue);
+    }
+    setEditingMottoCategory(null);
+    setMottoInputValue('');
+  };
 
   const SPHERE_KEYS = ['training', 'work', 'study', 'personality'];
 
@@ -842,7 +867,12 @@ export default function PlanningHorizons({
       {activeSphereFilter !== 'all' ? (
         /* SINGLE SPHERE DEEP FOCUS VIEW */
         (() => {
-          const cat = CATEGORIES[activeSphereFilter] || CATEGORIES.work;
+          const baseCat = CATEGORIES[activeSphereFilter] || CATEGORIES.work;
+          const effectiveMotto = categoryMottos?.[baseCat.id] !== undefined
+            ? categoryMottos[baseCat.id]
+            : (baseCat.motto || '');
+          const cat = { ...baseCat, motto: effectiveMotto };
+
           const spherePlans = currentPeriodPlans.filter(p => p.category === cat.id);
           const sphereGoals = spherePlans.filter(p => p.type === 'progress');
           const sphereTasks = spherePlans.filter(p => p.type === 'checkbox' || !p.type);
@@ -870,10 +900,66 @@ export default function PlanningHorizons({
                         {closedGoalsCount}/{sphereGoals.length} целей • {closedTasksCount}/{sphereTasks.length} задач
                       </span>
                     </div>
-                    {cat.motto && (
-                      <p className="text-xs text-slate-400 italic mt-0.5">
-                        «{cat.motto}»
-                      </p>
+
+                    {editingMottoCategory === cat.id ? (
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          autoFocus
+                          value={mottoInputValue}
+                          onChange={(e) => setMottoInputValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveEditingMotto(cat.id);
+                            if (e.key === 'Escape') cancelEditingMotto();
+                          }}
+                          placeholder="Введите девиз сферы..."
+                          className="bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded-lg px-2.5 py-1 text-xs text-slate-100 placeholder-slate-500 focus:outline-none w-64 max-w-full"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => saveEditingMotto(cat.id)}
+                          className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition-colors"
+                          title="Сохранить девиз (Enter)"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEditingMotto}
+                          className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:bg-slate-700 transition-colors"
+                          title="Отмена (Esc)"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : cat.motto ? (
+                      <div className="flex items-center gap-1.5 group mt-0.5">
+                        <p 
+                          onClick={() => startEditingMotto(cat.id, cat.motto)}
+                          className="text-xs text-slate-400 italic cursor-pointer hover:text-slate-200 transition-colors"
+                          title="Нажмите, чтобы изменить девиз сферы"
+                        >
+                          «{cat.motto}»
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => startEditingMotto(cat.id, cat.motto)}
+                          className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-slate-500 hover:text-indigo-400 transition-all"
+                          title="Редактировать девиз"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => startEditingMotto(cat.id, '')}
+                        className="mt-1 inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-indigo-400 transition-colors py-0.5"
+                        title="Добавить девиз или вдохновляющую цитату для этой сферы"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Девиз</span>
+                      </button>
                     )}
                   </div>
                 </div>
@@ -1159,7 +1245,12 @@ export default function PlanningHorizons({
       ) : (
         /* 4 SPHERES GRID VIEW */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {Object.values(CATEGORIES).map(cat => {
+          {Object.values(CATEGORIES).map(baseCat => {
+            const effectiveMotto = categoryMottos?.[baseCat.id] !== undefined
+              ? categoryMottos[baseCat.id]
+              : (baseCat.motto || '');
+            const cat = { ...baseCat, motto: effectiveMotto };
+
             const spherePlans = currentPeriodPlans.filter(p => p.category === cat.id);
             const sphereGoals = spherePlans.filter(p => p.type === 'progress');
             const sphereTasks = spherePlans.filter(p => p.type === 'checkbox' || !p.type);
@@ -1193,10 +1284,66 @@ export default function PlanningHorizons({
                           {sphereGoals.length} целей • {sphereTasks.length} задач
                         </span>
                       </div>
-                      {cat.motto && (
-                        <p className="text-[11px] text-slate-400 italic leading-snug">
-                          «{cat.motto}»
-                        </p>
+
+                      {editingMottoCategory === cat.id ? (
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            autoFocus
+                            value={mottoInputValue}
+                            onChange={(e) => setMottoInputValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveEditingMotto(cat.id);
+                              if (e.key === 'Escape') cancelEditingMotto();
+                            }}
+                            placeholder="Девиз сферы..."
+                            className="bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded px-2 py-0.5 text-[11px] text-slate-100 placeholder-slate-500 focus:outline-none w-full"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => saveEditingMotto(cat.id)}
+                            className="p-1 rounded bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition-colors"
+                            title="Сохранить"
+                          >
+                            <Check className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelEditingMotto}
+                            className="p-1 rounded bg-slate-800 text-slate-400 hover:bg-slate-700 transition-colors"
+                            title="Отмена"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : cat.motto ? (
+                        <div className="flex items-center gap-1.5 group mt-0.5">
+                          <p 
+                            onClick={() => startEditingMotto(cat.id, cat.motto)}
+                            className="text-[11px] text-slate-400 italic leading-snug cursor-pointer hover:text-slate-200 transition-colors"
+                            title="Нажмите, чтобы изменить девиз сферы"
+                          >
+                            «{cat.motto}»
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => startEditingMotto(cat.id, cat.motto)}
+                            className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-slate-500 hover:text-indigo-400 transition-all"
+                            title="Редактировать девиз"
+                          >
+                            <Edit3 className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => startEditingMotto(cat.id, '')}
+                          className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-slate-500 hover:text-indigo-400 transition-colors"
+                          title="Добавить девиз сферы"
+                        >
+                          <Plus className="w-2.5 h-2.5" />
+                          <span>Девиз</span>
+                        </button>
                       )}
                     </div>
 

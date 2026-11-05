@@ -12,6 +12,7 @@ export default function PlanModal({
   defaultPeriod = '',
   defaultType = 'progress',
   defaultIsKey = false,
+  categoryMottos = {},
   onSavePlan,
 }) {
   const [title, setTitle] = useState('');
@@ -166,9 +167,9 @@ export default function PlanModal({
                     <span className={`w-2 h-2 rounded-full ${cat.dotClass}`} />
                     <span className="font-semibold text-slate-200">{cat.name}</span>
                   </div>
-                  {cat.motto && (
+                  {(categoryMottos?.[cat.id] || cat.motto) && (
                     <div className="text-[10px] text-slate-400 italic line-clamp-1">
-                      «{cat.motto}»
+                      «{categoryMottos?.[cat.id] || cat.motto}»
                     </div>
                   )}
                 </button>

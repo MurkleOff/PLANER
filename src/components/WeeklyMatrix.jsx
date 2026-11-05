@@ -18,6 +18,7 @@ export default function WeeklyMatrix({
   weekDays,
   habits,
   habitLogs,
+  categoryMottos = {},
   onToggleHabit,
   onOpenAddHabitModal,
   onOpenEditHabitModal,
@@ -89,13 +90,21 @@ export default function WeeklyMatrix({
       </div>
 
       {/* Category Motto Bar if filtered */}
-      {activeCategoryFilter !== 'all' && CATEGORIES[activeCategoryFilter]?.motto && (
-        <div className="mb-3.5 px-3 py-2 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-center gap-2 text-xs">
-          <span className={`w-2 h-2 rounded-full ${CATEGORIES[activeCategoryFilter].dotClass}`} />
-          <span className="font-semibold text-slate-200">{CATEGORIES[activeCategoryFilter].name}:</span>
-          <span className="text-slate-400 italic">«{CATEGORIES[activeCategoryFilter].motto}»</span>
-        </div>
-      )}
+      {(() => {
+        if (activeCategoryFilter === 'all') return null;
+        const cat = CATEGORIES[activeCategoryFilter];
+        if (!cat) return null;
+        const effectiveMotto = categoryMottos?.[cat.id] !== undefined ? categoryMottos[cat.id] : (cat.motto || '');
+        if (!effectiveMotto) return null;
+
+        return (
+          <div className="mb-3.5 px-3 py-2 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-center gap-2 text-xs">
+            <span className={`w-2 h-2 rounded-full ${cat.dotClass}`} />
+            <span className="font-semibold text-slate-200">{cat.name}:</span>
+            <span className="text-slate-400 italic">«{effectiveMotto}»</span>
+          </div>
+        );
+      })()}
 
       {/* Table (with horizontal scroll on small devices) */}
       <div className="overflow-x-auto -mx-4 sm:mx-0">

@@ -9,6 +9,7 @@ export default function HabitModal({
   onClose,
   habitToEdit,
   defaultCategory = 'personality',
+  categoryMottos = {},
   onSaveHabit,
 }) {
   const [title, setTitle] = useState('');
@@ -131,9 +132,9 @@ export default function HabitModal({
                     <span className={`w-2 h-2 rounded-full ${cat.dotClass}`} />
                     <span className="font-semibold text-slate-200">{cat.name}</span>
                   </div>
-                  {cat.motto && (
+                  {(categoryMottos?.[cat.id] || cat.motto) && (
                     <div className="text-[10px] text-slate-400 italic line-clamp-2">
-                      «{cat.motto}»
+                      «{categoryMottos?.[cat.id] || cat.motto}»
                     </div>
                   )}
                 </button>

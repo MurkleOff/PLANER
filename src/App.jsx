@@ -18,7 +18,8 @@ import {
   INITIAL_HABITS, 
   INITIAL_PLANS, 
   INITIAL_TOP_TASKS, 
-  INITIAL_INBOX 
+  INITIAL_INBOX,
+  DEFAULT_CATEGORY_MOTTOS 
 } from './constants/initialData';
 
 import {
@@ -68,6 +69,7 @@ export default function App() {
             syncId: '',
           },
           historyArchive: parsed.historyArchive || {},
+          categoryMottos: parsed.categoryMottos || DEFAULT_CATEGORY_MOTTOS,
           theme: parsed.theme || 'dark',
         };
       }
@@ -85,6 +87,7 @@ export default function App() {
       inboxTasks: INITIAL_INBOX,
       habitLogs: {},
       focusMinutesByDate: {},
+      categoryMottos: DEFAULT_CATEGORY_MOTTOS,
       supabaseConfig: {
         supabaseUrl: '',
         supabaseAnonKey: '',
@@ -604,6 +607,17 @@ export default function App() {
     }));
   };
 
+  // Category Motto update
+  const handleUpdateCategoryMotto = (categoryId, newMotto) => {
+    setState(prev => ({
+      ...prev,
+      categoryMottos: {
+        ...(prev.categoryMottos || DEFAULT_CATEGORY_MOTTOS),
+        [categoryId]: (newMotto || '').trim(),
+      },
+    }));
+  };
+
   // New Week Reset & Archive
   const handleStartNewWeek = () => {
     if (!window.confirm('Зафиксировать текущую неделю в архив и обнулить отметки для старта новой недели?')) {
@@ -835,6 +849,8 @@ export default function App() {
           <div className="animate-in fade-in duration-200">
             <PlanningHorizons
               plans={state.plans}
+              categoryMottos={state.categoryMottos || DEFAULT_CATEGORY_MOTTOS}
+              onUpdateCategoryMotto={handleUpdateCategoryMotto}
               onTogglePlan={handleTogglePlan}
               onUpdatePlanProgress={handleUpdatePlanProgress}
               onUpdatePlanTitle={handleUpdatePlanTitle}
@@ -883,6 +899,7 @@ export default function App() {
               weekDays={weekDays}
               habits={state.habits}
               habitLogs={state.habitLogs}
+              categoryMottos={state.categoryMottos || DEFAULT_CATEGORY_MOTTOS}
               onToggleHabit={handleToggleHabit}
               onOpenAddHabitModal={(catId) => setHabitModalData({ isOpen: true, habit: null, defaultCategory: catId || 'personality' })}
               onOpenEditHabitModal={(habit) => setHabitModalData({ isOpen: true, habit, defaultCategory: habit.category })}
@@ -984,6 +1001,7 @@ export default function App() {
         onClose={() => setHabitModalData({ isOpen: false, habit: null, defaultCategory: 'personality' })}
         habitToEdit={habitModalData.habit}
         defaultCategory={habitModalData.defaultCategory}
+        categoryMottos={state.categoryMottos || DEFAULT_CATEGORY_MOTTOS}
         onSaveHabit={handleSaveHabit}
       />
 
@@ -996,6 +1014,7 @@ export default function App() {
         defaultPeriod={planModalData.defaultPeriod}
         defaultType={planModalData.defaultType || 'progress'}
         defaultIsKey={planModalData.defaultIsKey}
+        categoryMottos={state.categoryMottos || DEFAULT_CATEGORY_MOTTOS}
         onSavePlan={handleSavePlan}
       />
     </div>

@@ -2,7 +2,7 @@ export const CATEGORIES = {
   training: {
     id: 'training',
     name: 'Тренировки',
-    motto: 'Тело — отражение души.',
+    motto: '',
     color: 'emerald',
     badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
     barClass: 'bg-emerald-500',
@@ -12,7 +12,7 @@ export const CATEGORIES = {
   work: {
     id: 'work',
     name: 'Дело',
-    motto: 'Любимое дело раскрашивает монотонность бытия.',
+    motto: '',
     color: 'amber',
     badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
     barClass: 'bg-amber-500',
@@ -22,7 +22,7 @@ export const CATEGORIES = {
   study: {
     id: 'study',
     name: 'Учёба',
-    motto: 'Расширение математических знаний способствует лучшему пониманию мира.',
+    motto: '',
     color: 'indigo',
     badgeClass: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
     barClass: 'bg-indigo-500',
@@ -32,13 +32,20 @@ export const CATEGORIES = {
   personality: {
     id: 'personality',
     name: 'Личность',
-    motto: 'Иногда целой жизни не хватает, чтобы разобраться в себе.',
+    motto: '',
     color: 'violet',
     badgeClass: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
     barClass: 'bg-violet-500',
     dotClass: 'bg-violet-400',
     borderClass: 'border-violet-500/30',
   },
+};
+
+export const DEFAULT_CATEGORY_MOTTOS = {
+  training: '',
+  work: '',
+  study: '',
+  personality: '',
 };
 
 // 100% clean initial state: NO hardcoded or mystery habits
